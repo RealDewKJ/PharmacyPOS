@@ -1,0 +1,22 @@
+{
+    "name": "pharmacy-pos",
+    "version": "1.0.0",
+    "description": "Pharmacy Point of Sale System",
+    "private": true,
+    "workspaces": [
+        "frontend",
+        "backend"
+    ],
+    "scripts": {
+        "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+        "dev:frontend": "cd frontend && npm run dev",
+        "dev:backend": "cd backend && bun run dev",
+        "build": "npm run build:frontend && npm run build:backend",
+        "build:frontend": "cd frontend && npm run build",
+        "build:backend": "cd backend && bun run build",
+        "install:all": "npm install && cd frontend && npm install && cd ../backend && bun install"
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2"
+    }
+}
