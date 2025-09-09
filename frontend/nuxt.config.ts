@@ -24,7 +24,10 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     public: {
-      apiBase: process.env.API_BASE || 'http://localhost:3001'
+      apiBase: process.env.NUXT_PUBLIC_API_BASE_URL || 'http://localhost:3001'
     }
+  },
+  nitro: {
+    preset: 'vercel'
   }
 })

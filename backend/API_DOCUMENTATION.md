@@ -519,13 +519,7 @@ Create a new purchase order (requires authentication).
 
 #### GET /prescriptions
 
-Get all prescriptions with pagination.
-
-**Query Parameters:**
-
-- `page` (optional): Page number (default: 1)
-- `limit` (optional): Items per page (default: 10)
-- `status` (optional): Filter by status (PENDING, FILLED, EXPIRED)
+Get all prescriptions with customer and product details.
 
 **Response:**
 
@@ -535,27 +529,36 @@ Get all prescriptions with pagination.
     {
       "id": "prescription-id",
       "customerId": "customer-id",
-      "productId": "product-id",
-      "quantity": 30,
-      "dosage": "1 tablet daily",
+      "prescribedBy": "Dr. Smith",
+      "notes": "Take with food",
       "status": "PENDING",
       "expiryDate": "2024-02-01",
+      "createdAt": "2024-01-01T10:00:00.000Z",
+      "updatedAt": "2024-01-01T10:00:00.000Z",
       "customer": {
         "id": "customer-id",
-        "name": "John Customer"
+        "name": "John Customer",
+        "email": "john@example.com",
+        "phone": "+1234567890"
       },
-      "product": {
-        "id": "product-id",
-        "name": "Prescription Drug"
-      }
+      "items": [
+        {
+          "id": "item-id",
+          "productId": "product-id",
+          "quantity": 30,
+          "dosage": "1 tablet daily",
+          "frequency": "Once daily",
+          "duration": "30 days",
+          "product": {
+            "id": "product-id",
+            "name": "Prescription Drug",
+            "sku": "RX-001",
+            "barcode": "1234567890123"
+          }
+        }
+      ]
     }
-  ],
-  "pagination": {
-    "page": 1,
-    "limit": 10,
-    "total": 12,
-    "pages": 2
-  }
+  ]
 }
 ```
 
@@ -568,10 +571,85 @@ Create a new prescription (requires authentication).
 ```json
 {
   "customerId": "customer-id",
-  "productId": "product-id",
-  "quantity": 30,
-  "dosage": "1 tablet daily",
+  "items": [
+    {
+      "productId": "product-id",
+      "quantity": 30,
+      "dosage": "1 tablet daily",
+      "frequency": "Once daily",
+      "duration": "30 days"
+    }
+  ],
+  "notes": "Take with food",
+  "prescribedBy": "Dr. Smith",
   "expiryDate": "2024-02-01"
+}
+```
+
+#### GET /prescriptions/:id
+
+Get a specific prescription by ID (requires authentication).
+
+**Response:**
+
+```json
+{
+  "prescription": {
+    "id": "prescription-id",
+    "customerId": "customer-id",
+    "prescribedBy": "Dr. Smith",
+    "notes": "Take with food",
+    "status": "PENDING",
+    "expiryDate": "2024-02-01",
+    "createdAt": "2024-01-01T10:00:00.000Z",
+    "updatedAt": "2024-01-01T10:00:00.000Z",
+    "customer": {
+      "id": "customer-id",
+      "name": "John Customer",
+      "email": "john@example.com",
+      "phone": "+1234567890"
+    },
+    "items": [
+      {
+        "id": "item-id",
+        "productId": "product-id",
+        "quantity": 30,
+        "dosage": "1 tablet daily",
+        "frequency": "Once daily",
+        "duration": "30 days",
+        "product": {
+          "id": "product-id",
+          "name": "Prescription Drug",
+          "sku": "RX-001",
+          "barcode": "1234567890123"
+        }
+      }
+    ]
+  }
+}
+```
+
+#### PUT /prescriptions/:id/status
+
+Update prescription status (requires authentication).
+
+**Request Body:**
+
+```json
+{
+  "status": "FILLED"
+}
+```
+
+**Response:**
+
+```json
+{
+  "prescription": {
+    "id": "prescription-id",
+    "status": "FILLED",
+    "updatedAt": "2024-01-01T11:00:00.000Z"
+  }
 }
 ```
 
@@ -586,37 +664,261 @@ Get dashboard statistics.
 ```json
 {
   "stats": {
-    "totalSales": 15000.0,
     "totalProducts": 150,
+    "totalRevenue": 15000.0,
+    "totalSales": 250,
     "lowStockProducts": 5,
-    "expiringProducts": 3,
-    "pendingPrescriptions": 8,
-    "todaySales": 500.0,
-    "monthlySales": 5000.0
+    "totalCustomers": 45,
+    "totalSuppliers": 12
   }
 }
 ```
 
-#### GET /dashboard/sales-chart
+#### GET /dashboard/recent-sales
 
-Get sales data for charts.
-
-**Query Parameters:**
-
-- `period` (optional): Time period (daily, weekly, monthly, default: daily)
-- `days` (optional): Number of days (default: 7)
+Get the 10 most recent sales.
 
 **Response:**
 
 ```json
 {
-  "data": [
+  "recentSales": [
     {
-      "date": "2024-01-01",
-      "sales": 500.0,
-      "transactions": 25
+      "id": "sale-id",
+      "customerId": "customer-id",
+      "userId": "user-id",
+      "paymentMethod": "CASH",
+      "discount": 5.0,
+      "tax": 2.5,
+      "subtotal": 100.0,
+      "total": 97.5,
+      "createdAt": "2024-01-01T10:00:00.000Z",
+      "customer": {
+        "id": "customer-id",
+        "name": "John Customer"
+      },
+      "items": [
+        {
+          "id": "item-id",
+          "productId": "product-id",
+          "quantity": 2,
+          "price": 9.99,
+          "total": 19.98,
+          "product": {
+            "id": "product-id",
+            "name": "Aspirin 500mg"
+          }
+        }
+      ]
     }
   ]
+}
+```
+
+#### GET /dashboard/sales-by-period
+
+Get sales data for a specific time period.
+
+**Query Parameters:**
+
+- `period` (required): Time period (day, week, month, year)
+
+**Response:**
+
+```json
+{
+  "period": "month",
+  "totalRevenue": 5000.0,
+  "totalSales": 150,
+  "sales": [
+    {
+      "id": "sale-id",
+      "total": 97.5,
+      "createdAt": "2024-01-01T10:00:00.000Z",
+      "items": [...]
+    }
+  ]
+}
+```
+
+#### GET /dashboard/top-products
+
+Get the top selling products.
+
+**Query Parameters:**
+
+- `limit` (optional): Number of products to return (default: 10)
+
+**Response:**
+
+```json
+{
+  "topProducts": [
+    {
+      "product": {
+        "id": "product-id",
+        "name": "Aspirin 500mg",
+        "sku": "ASP-500-001",
+        "price": 9.99
+      },
+      "totalQuantity": 150,
+      "totalRevenue": 1498.5
+    }
+  ]
+}
+```
+
+### Users
+
+#### GET /users
+
+Get all active users.
+
+**Response:**
+
+```json
+{
+  "users": [
+    {
+      "id": "user-id",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "role": "PHARMACIST",
+      "isActive": true,
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+#### GET /users/:id
+
+Get a specific user by ID.
+
+**Response:**
+
+```json
+{
+  "user": {
+    "id": "user-id",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "role": "PHARMACIST",
+    "isActive": true,
+    "createdAt": "2024-01-01T00:00:00.000Z"
+  }
+}
+```
+
+#### PUT /users/profile
+
+Update current user profile (requires authentication).
+
+**Request Body:**
+
+```json
+{
+  "name": "Updated Name",
+  "currentPassword": "oldpassword",
+  "newPassword": "newpassword"
+}
+```
+
+**Response:**
+
+```json
+{
+  "user": {
+    "id": "user-id",
+    "name": "Updated Name",
+    "email": "john@example.com",
+    "role": "PHARMACIST",
+    "isActive": true,
+    "createdAt": "2024-01-01T00:00:00.000Z"
+  }
+}
+```
+
+#### DELETE /users/:id
+
+Deactivate a user by ID (requires authentication).
+
+**Response:**
+
+```json
+{
+  "message": "User deactivated successfully"
+}
+```
+
+### Backup
+
+#### POST /api/backup/create
+
+Create a database backup (requires authentication).
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Backup created successfully",
+  "backup": {
+    "id": 1704067200000,
+    "name": "backup_2024-01-01T00-00-00-000Z.db",
+    "date": "2024-01-01T00:00:00.000Z",
+    "size": "2.5 MB",
+    "path": "/path/to/backup.db"
+  }
+}
+```
+
+#### GET /api/backup/list
+
+List all available backups (requires authentication).
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "backups": [
+    {
+      "id": 1704067200000,
+      "name": "backup_2024-01-01T00-00-00-000Z.db",
+      "date": "2024-01-01T00:00:00.000Z",
+      "size": "2.5 MB",
+      "path": "/path/to/backup.db"
+    }
+  ]
+}
+```
+
+#### POST /api/backup/restore/:name
+
+Restore database from a specific backup (requires authentication).
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Database restored successfully",
+  "restoredFrom": "backup_2024-01-01T00-00-00-000Z.db",
+  "currentBackup": "pre_restore_1704067200000.db"
+}
+```
+
+#### DELETE /api/backup/:name
+
+Delete a specific backup file (requires authentication).
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Backup deleted successfully"
 }
 ```
 
@@ -648,7 +950,7 @@ API requests are limited to 100 requests per minute per IP address.
 
 You can test the API using:
 
-1. **Swagger UI**: Visit `http://localhost:3001/docs` for interactive documentation
+1. **Swagger UI**: Visit `http://localhost:3001/swagger` for interactive documentation
 2. **cURL**: Use the examples above with cURL commands
 3. **Postman**: Import the endpoints into Postman for testing
 
@@ -681,6 +983,63 @@ curl -X POST http://localhost:3001/products \
     "costPrice": 10.99,
     "stockQuantity": 50,
     "categoryId": "category-id"
+  }'
+```
+
+### Get Dashboard Stats
+
+```bash
+curl -X GET http://localhost:3001/dashboard/stats \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Get Top Products
+
+```bash
+curl -X GET "http://localhost:3001/dashboard/top-products?limit=5" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Get Users
+
+```bash
+curl -X GET http://localhost:3001/users \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Create Backup
+
+```bash
+curl -X POST http://localhost:3001/api/backup/create \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### List Backups
+
+```bash
+curl -X GET http://localhost:3001/api/backup/list \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+### Create Prescription
+
+```bash
+curl -X POST http://localhost:3001/prescriptions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "customerId": "customer-id",
+    "items": [
+      {
+        "productId": "product-id",
+        "quantity": 30,
+        "dosage": "1 tablet daily",
+        "frequency": "Once daily",
+        "duration": "30 days"
+      }
+    ],
+    "notes": "Take with food",
+    "prescribedBy": "Dr. Smith"
   }'
 ```
 

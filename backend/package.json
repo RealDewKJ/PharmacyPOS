@@ -9,22 +9,28 @@
         "start": "bun run dist/index.js",
         "db:generate": "prisma generate",
         "db:push": "prisma db push",
-        "db:migrate": "prisma migrate dev",
+        "db:migrate": "prisma migrate deploy",
         "db:seed": "bun run src/database/seed.ts",
-        "db:studio": "prisma studio"
+        "db:studio": "prisma studio",
+        "postinstall": "prisma generate",
+        "db:dev:push": "prisma db push --schema=./prisma/schema.prisma --force-reset",
+        "db:dev:studio": "prisma studio --schema=./prisma/schema.prisma",
+        "db:prod:generate": "prisma generate --schema=./prisma/schema.postgresql.prisma",
+        "db:prod:migrate": "prisma migrate deploy --schema=./prisma/schema.postgresql.prisma",
+        "db:prod:studio": "prisma studio --schema=./prisma/schema.postgresql.prisma"
     },
     "dependencies": {
-        "elysia": "^0.8.0",
         "@elysiajs/cors": "^0.8.0",
         "@elysiajs/jwt": "^0.8.0",
-        "@elysiajs/swagger": "^0.8.0",
+        "@elysiajs/swagger": "^0.8.5",
         "@prisma/client": "^5.7.0",
         "bcryptjs": "^2.4.3",
+        "elysia": "^0.8.17",
         "zod": "^3.22.4"
     },
     "devDependencies": {
         "@types/bcryptjs": "^2.4.6",
-        "@types/node": "^20.10.0",
+        "@types/node": "^20.19.13",
         "bun-types": "latest",
         "prisma": "^5.7.0"
     },

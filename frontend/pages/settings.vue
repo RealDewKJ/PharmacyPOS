@@ -70,7 +70,7 @@
               <div>
                 <label class="text-sm font-medium text-foreground">Currency</label>
                 <select v-model="settings.currency" class="w-full p-2 border border-input rounded-md bg-background text-foreground mt-1">
-                  <option value="USD">USD ($)</option>
+                  <option value="THB">THB (฿)</option>
                   <option value="EUR">EUR (€)</option>
                   <option value="GBP">GBP (£)</option>
                 </select>
@@ -189,11 +189,11 @@
             </CardHeader>
             <CardContent class="space-y-6">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Button @click="createBackup">
+                <Button @click="handleCreateBackup" :disabled="backupLoading">
                   <DownloadIcon class="h-4 w-4 mr-2" />
-                  Create Backup
+                  {{ backupLoading ? 'Creating...' : 'Create Backup' }}
                 </Button>
-                <Button variant="outline" @click="restoreBackup">
+                <Button variant="outline" @click="handleRestoreBackup" :disabled="backupLoading">
                   <UploadIcon class="h-4 w-4 mr-2" />
                   Restore Backup
                 </Button>
@@ -217,18 +217,53 @@
                 </div>
               </div>
               
+              <!-- Error Message -->
+              <div v-if="backupError" class="p-3 bg-red-50 border border-red-200 rounded-md">
+                <div class="flex items-center gap-2">
+                  <AlertTriangleIcon class="h-4 w-4 text-red-500" />
+                  <span class="text-sm text-red-700">{{ backupError }}</span>
+                </div>
+              </div>
+
+              <!-- Backup Statistics -->
+              <div v-if="backupStats" class="p-4 bg-blue-50 border border-blue-200 rounded-md">
+                <h4 class="font-medium text-blue-900 mb-2">Backup Statistics</h4>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span class="text-blue-700">Total Backups:</span>
+                    <span class="font-medium">{{ backupStats.totalBackups }}</span>
+                  </div>
+                  <div>
+                    <span class="text-blue-700">Total Size:</span>
+                    <span class="font-medium">{{ backupStats.totalSize }}</span>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label class="text-sm font-medium text-foreground">Recent Backups</label>
                 <div class="mt-2 space-y-2">
-                  <div v-for="backup in recentBackups" :key="backup.id" class="flex items-center justify-between p-3 border border-border rounded-md">
+                  <div v-if="backupLoading" class="text-center py-4">
+                    <span class="text-muted-foreground">Loading backups...</span>
+                  </div>
+                  <div v-else-if="recentBackups.length === 0" class="text-center py-4">
+                    <span class="text-muted-foreground">No backups found</span>
+                  </div>
+                  <div v-else v-for="backup in recentBackups" :key="backup.id" class="flex items-center justify-between p-3 border border-border rounded-md">
                     <div>
                       <div class="font-medium text-foreground">{{ backup.name }}</div>
-                      <div class="text-sm text-muted-foreground">{{ backup.date }}</div>
+                      <div class="text-sm text-muted-foreground">{{ new Date(backup.date).toLocaleString() }}</div>
                     </div>
                     <div class="flex items-center gap-2">
                       <span class="text-sm text-muted-foreground">{{ backup.size }}</span>
-                      <Button size="sm" variant="outline" @click="downloadBackup(backup.id)">
+                      <Button size="sm" variant="outline" @click="handleDownloadBackup(backup.name)">
                         <DownloadIcon class="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="outline" @click="handleRestoreBackup(backup.name)">
+                        <UploadIcon class="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="destructive" @click="handleDeleteBackup(backup.name)">
+                        <TrashIcon class="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
@@ -324,7 +359,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { 
   SettingsIcon,
   UsersIcon,
@@ -336,8 +371,10 @@ import {
   TrashIcon,
   DownloadIcon,
   UploadIcon,
-  SaveIcon
+  SaveIcon,
+  AlertTriangleIcon
 } from 'lucide-vue-next'
+import { useBackup } from '../composables/useBackup'
 
 import Card from '../components/ui/card.vue'
 import CardHeader from '../components/ui/card-header.vue'
@@ -392,11 +429,25 @@ const users = ref([
   { id: 3, name: 'Mike Cashier', email: 'mike@pharmacy.com', role: 'cashier' }
 ])
 
-const recentBackups = ref([
-  { id: 1, name: 'Backup_2024_01_15', date: '2024-01-15 14:30', size: '2.5 MB' },
-  { id: 2, name: 'Backup_2024_01_14', date: '2024-01-14 14:30', size: '2.4 MB' },
-  { id: 3, name: 'Backup_2024_01_13', date: '2024-01-13 14:30', size: '2.3 MB' }
-])
+// Initialize backup composable
+const { 
+  backups: recentBackups, 
+  stats: backupStats, 
+  loading: backupLoading, 
+  error: backupError,
+  fetchBackups, 
+  createBackup, 
+  restoreBackup, 
+  downloadBackup, 
+  deleteBackup, 
+  fetchStats 
+} = useBackup()
+
+// Load backups when component mounts
+onMounted(async () => {
+  await fetchBackups()
+  await fetchStats()
+})
 
 const newUser = ref({
   name: '',
@@ -437,18 +488,35 @@ const enable2FA = () => {
   console.log('Enable 2FA')
 }
 
-const createBackup = () => {
-  // Implement backup creation
-  console.log('Creating backup')
+const handleCreateBackup = async () => {
+  const result = await createBackup()
+  if (result) {
+    // Show success message
+    console.log('Backup created successfully:', result)
+  }
 }
 
-const restoreBackup = () => {
-  // Implement backup restoration
-  console.log('Restoring backup')
+const handleRestoreBackup = async (filename: string) => {
+  if (confirm('Are you sure you want to restore this backup? This will replace the current database.')) {
+    const result = await restoreBackup(filename)
+    if (result) {
+      // Show success message
+      console.log('Backup restored successfully:', result)
+    }
+  }
 }
 
-const downloadBackup = (backupId: number) => {
-  // Implement backup download
-  console.log('Downloading backup:', backupId)
+const handleDownloadBackup = async (filename: string) => {
+  await downloadBackup(filename)
+}
+
+const handleDeleteBackup = async (filename: string) => {
+  if (confirm('Are you sure you want to delete this backup?')) {
+    const result = await deleteBackup(filename)
+    if (result) {
+      // Show success message
+      console.log('Backup deleted successfully')
+    }
+  }
 }
 </script>

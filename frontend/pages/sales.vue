@@ -3,8 +3,8 @@
     <div class="container mx-auto px-4 py-8">
       <!-- Header -->
       <div class="mb-8">
-        <h1 class="text-3xl font-bold text-foreground">Sales</h1>
-        <p class="text-muted-foreground">View and manage sales transactions</p>
+        <h1 class="text-3xl font-bold text-foreground">{{ t.sales.title }}</h1>
+        <p class="text-muted-foreground">{{ t.sales.subtitle }}</p>
       </div>
 
       <!-- Stats Cards -->
@@ -12,8 +12,8 @@
         <Card class="p-6">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm font-medium text-muted-foreground">Total Sales</p>
-              <p class="text-2xl font-bold text-foreground">$12,345.67</p>
+              <p class="text-sm font-medium text-muted-foreground">{{ t.sales.totalSales }}</p>
+              <p class="text-2xl font-bold text-foreground">฿12,345.67</p>
             </div>
             <div class="w-8 h-8 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
               <DollarSignIcon class="h-4 w-4 text-green-600 dark:text-green-400" />
@@ -23,8 +23,8 @@
         <Card class="p-6">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm font-medium text-muted-foreground">Today's Sales</p>
-              <p class="text-2xl font-bold text-foreground">$1,234.56</p>
+              <p class="text-sm font-medium text-muted-foreground">{{ t.sales.todaysSales }}</p>
+              <p class="text-2xl font-bold text-foreground">฿1,234.56</p>
             </div>
             <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center">
               <TrendingUpIcon class="h-4 w-4 text-blue-600 dark:text-blue-400" />
@@ -34,7 +34,7 @@
         <Card class="p-6">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm font-medium text-muted-foreground">Total Orders</p>
+              <p class="text-sm font-medium text-muted-foreground">{{ t.sales.totalOrders }}</p>
               <p class="text-2xl font-bold text-foreground">156</p>
             </div>
             <div class="w-8 h-8 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center">
@@ -45,7 +45,7 @@
         <Card class="p-6">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm font-medium text-muted-foreground">Today's Orders</p>
+              <p class="text-sm font-medium text-muted-foreground">{{ t.sales.todaysOrders }}</p>
               <p class="text-2xl font-bold text-foreground">23</p>
             </div>
             <div class="w-8 h-8 bg-orange-100 dark:bg-orange-900/20 rounded-full flex items-center justify-center">
@@ -61,14 +61,14 @@
           <div class="flex flex-col md:flex-row gap-4 flex-1">
             <Input 
               v-model="searchQuery" 
-              placeholder="Search sales..." 
+              :placeholder="t.sales.searchPlaceholder" 
               class="max-w-md"
             />
             <select v-model="statusFilter" class="p-2 border border-input rounded-md bg-background text-foreground">
-              <option value="">All Status</option>
-              <option value="completed">Completed</option>
-              <option value="pending">Pending</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="">{{ t.sales.allStatus }}</option>
+              <option value="completed">{{ t.sales.completed }}</option>
+              <option value="pending">{{ t.sales.pending }}</option>
+              <option value="cancelled">{{ t.sales.cancelled }}</option>
             </select>
             <Input 
               type="date" 
@@ -78,7 +78,7 @@
           </div>
           <Button @click="exportSales">
             <DownloadIcon class="h-4 w-4 mr-2" />
-            Export
+            {{ t.sales.export }}
           </Button>
         </div>
       </Card>
@@ -86,22 +86,22 @@
       <!-- Sales Table -->
       <Card class="p-6">
         <CardHeader>
-          <CardTitle>Sales History</CardTitle>
-          <CardDescription>Recent sales transactions</CardDescription>
+          <CardTitle>{{ t.sales.salesHistory }}</CardTitle>
+          <CardDescription>{{ t.sales.salesHistoryDescription }}</CardDescription>
         </CardHeader>
         <CardContent>
           <div class="overflow-x-auto">
             <table class="w-full">
               <thead>
                 <tr class="border-b border-border">
-                  <th class="text-left p-3 font-medium text-foreground">Order ID</th>
-                  <th class="text-left p-3 font-medium text-foreground">Customer</th>
-                  <th class="text-left p-3 font-medium text-foreground">Items</th>
-                  <th class="text-left p-3 font-medium text-foreground">Total</th>
-                  <th class="text-left p-3 font-medium text-foreground">Payment</th>
-                  <th class="text-left p-3 font-medium text-foreground">Status</th>
-                  <th class="text-left p-3 font-medium text-foreground">Date</th>
-                  <th class="text-left p-3 font-medium text-foreground">Actions</th>
+                  <th class="text-left p-3 font-medium text-foreground">{{ t.sales.orderId }}</th>
+                  <th class="text-left p-3 font-medium text-foreground">{{ t.sales.customer }}</th>
+                  <th class="text-left p-3 font-medium text-foreground">{{ t.sales.items }}</th>
+                  <th class="text-left p-3 font-medium text-foreground">{{ t.sales.total }}</th>
+                  <th class="text-left p-3 font-medium text-foreground">{{ t.sales.payment }}</th>
+                  <th class="text-left p-3 font-medium text-foreground">{{ t.sales.status }}</th>
+                  <th class="text-left p-3 font-medium text-foreground">{{ t.sales.date }}</th>
+                  <th class="text-left p-3 font-medium text-foreground">{{ t.sales.actions }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -116,10 +116,10 @@
                     </div>
                   </td>
                   <td class="p-3">
-                    <span class="text-sm text-muted-foreground">{{ sale.items }} items</span>
+                    <span class="text-sm text-muted-foreground">{{ sale.items }} {{ t.sales.items.toLowerCase() }}</span>
                   </td>
                   <td class="p-3">
-                    <span class="font-medium text-foreground">${{ sale.total.toFixed(2) }}</span>
+                    <span class="font-medium text-foreground">฿{{ sale.total.toFixed(2) }}</span>
                   </td>
                   <td class="p-3">
                     <span :class="[
@@ -136,7 +136,8 @@
                       sale.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400' : 
                       'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
                     ]">
-                      {{ sale.status }}
+                      {{ sale.status === 'completed' ? t.sales.completed : 
+                         sale.status === 'pending' ? t.sales.pending : t.sales.cancelled }}
                     </span>
                   </td>
                   <td class="p-3 text-muted-foreground">{{ sale.date }}</td>
@@ -164,54 +165,54 @@
       <div v-if="selectedSale" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
         <Card class="w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
           <CardHeader>
-            <CardTitle>Sale Details - #{{ selectedSale.id }}</CardTitle>
-            <CardDescription>Complete transaction information</CardDescription>
+            <CardTitle>{{ t.sales.saleDetails }} - #{{ selectedSale.id }}</CardTitle>
+            <CardDescription>{{ t.sales.saleDetailsDescription }}</CardDescription>
           </CardHeader>
           <CardContent class="space-y-6">
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="text-sm font-medium text-muted-foreground">Customer</label>
+                <label class="text-sm font-medium text-muted-foreground">{{ t.sales.customer }}</label>
                 <p class="text-foreground">{{ selectedSale.customer }}</p>
               </div>
               <div>
-                <label class="text-sm font-medium text-muted-foreground">Date</label>
+                <label class="text-sm font-medium text-muted-foreground">{{ t.sales.date }}</label>
                 <p class="text-foreground">{{ selectedSale.date }}</p>
               </div>
               <div>
-                <label class="text-sm font-medium text-muted-foreground">Payment Method</label>
+                <label class="text-sm font-medium text-muted-foreground">{{ t.sales.paymentMethod }}</label>
                 <p class="text-foreground">{{ selectedSale.paymentMethod }}</p>
               </div>
               <div>
-                <label class="text-sm font-medium text-muted-foreground">Status</label>
+                <label class="text-sm font-medium text-muted-foreground">{{ t.sales.status }}</label>
                 <p class="text-foreground">{{ selectedSale.status }}</p>
               </div>
             </div>
             
             <div>
-              <label class="text-sm font-medium text-muted-foreground">Items</label>
+              <label class="text-sm font-medium text-muted-foreground">{{ t.sales.itemsLabel }}</label>
               <div class="mt-2 space-y-2">
                 <div v-for="item in selectedSale.itemDetails" :key="item.id" class="flex justify-between items-center p-2 bg-muted rounded-md">
                   <div>
                     <p class="font-medium text-foreground">{{ item.name }}</p>
-                    <p class="text-sm text-muted-foreground">Qty: {{ item.quantity }}</p>
+                    <p class="text-sm text-muted-foreground">{{ t.sales.quantity }}: {{ item.quantity }}</p>
                   </div>
-                  <p class="font-medium text-foreground">${{ item.price.toFixed(2) }}</p>
+                  <p class="font-medium text-foreground">฿{{ item.price.toFixed(2) }}</p>
                 </div>
               </div>
             </div>
             
             <div class="border-t pt-4">
               <div class="flex justify-between items-center text-lg font-bold">
-                <span>Total</span>
-                <span>${{ selectedSale.total.toFixed(2) }}</span>
+                <span>{{ t.sales.total }}</span>
+                <span>฿{{ selectedSale.total.toFixed(2) }}</span>
               </div>
             </div>
             
             <div class="flex gap-2 justify-end">
-              <Button variant="outline" @click="selectedSale = null">Close</Button>
+              <Button variant="outline" @click="selectedSale = null">{{ t.sales.close }}</Button>
               <Button @click="printReceipt(selectedSale)">
                 <PrinterIcon class="h-4 w-4 mr-2" />
-                Print Receipt
+                {{ t.sales.printReceipt }}
               </Button>
             </div>
           </CardContent>
@@ -241,6 +242,9 @@ import CardTitle from '../components/ui/card-title.vue'
 import CardDescription from '../components/ui/card-description.vue'
 import Input from '../components/ui/input.vue'
 import Button from '../components/ui/button.vue'
+
+// Language composable
+const { t } = useLanguage()
 
 // Mock data - replace with actual API calls
 const sales = ref([
@@ -287,10 +291,28 @@ const sales = ref([
   }
 ])
 
+// Define the sale type
+interface Sale {
+  id: string
+  customer: string
+  customerEmail: string
+  items: number
+  total: number
+  paymentMethod: string
+  status: string
+  date: string
+  itemDetails: Array<{
+    id: number
+    name: string
+    quantity: number
+    price: number
+  }>
+}
+
 const searchQuery = ref('')
 const statusFilter = ref('')
 const dateFilter = ref('')
-const selectedSale = ref(null)
+const selectedSale = ref<Sale | null>(null)
 
 const filteredSales = computed(() => {
   let filtered = sales.value
@@ -313,11 +335,11 @@ const filteredSales = computed(() => {
   return filtered
 })
 
-const viewSale = (sale: any) => {
+const viewSale = (sale: Sale) => {
   selectedSale.value = sale
 }
 
-const printReceipt = (sale: any) => {
+const printReceipt = (sale: Sale) => {
   // Implement print receipt functionality
   console.log('Print receipt for sale:', sale.id)
 }

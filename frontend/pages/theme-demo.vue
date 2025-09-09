@@ -135,7 +135,7 @@
             <div class="space-y-2">
               <div class="flex justify-between">
                 <span class="text-sm text-muted-foreground">Total Sales</span>
-                <span class="font-medium text-foreground">$12,345.67</span>
+                <span class="font-medium text-foreground">฿12,345.67</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-sm text-muted-foreground">Products</span>

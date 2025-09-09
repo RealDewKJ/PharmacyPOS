@@ -55,7 +55,7 @@
                       <p class="text-sm text-muted-foreground">{{ product.sku }} • {{ t.pos.stock }}: {{ product.stockQuantity }}</p>
                     </div>
                     <div class="text-right">
-                      <p class="font-bold text-foreground">${{ product.price }}</p>
+                      <p class="font-bold text-foreground">฿{{ product.price }}</p>
                       <p class="text-sm text-muted-foreground">{{ product.category?.name }}</p>
                     </div>
                   </div>
@@ -103,7 +103,7 @@
                     >
                       +
                     </Button>
-                    <p class="font-bold ml-4 text-foreground">${{ (item.price * item.quantity).toFixed(2) }}</p>
+                    <p class="font-bold ml-4 text-foreground">฿{{ (item.price * item.quantity).toFixed(2) }}</p>
                     <Button
                       variant="destructive"
                       size="sm"
@@ -170,19 +170,19 @@
               <div class="border-t border-border pt-4 space-y-2">
                 <div class="flex justify-between">
                   <span class="text-foreground">{{ t.pos.subtotal }}:</span>
-                  <span class="text-foreground">${{ subtotal.toFixed(2) }}</span>
+                  <span class="text-foreground">฿{{ subtotal.toFixed(2) }}</span>
                 </div>
                 <div class="flex justify-between">
                   <span class="text-foreground">{{ t.pos.discount }}:</span>
-                  <span class="text-foreground">-${{ discount.toFixed(2) }}</span>
+                  <span class="text-foreground">-฿{{ discount.toFixed(2) }}</span>
                 </div>
                 <div class="flex justify-between">
                   <span class="text-foreground">{{ t.pos.tax }}:</span>
-                  <span class="text-foreground">${{ tax.toFixed(2) }}</span>
+                  <span class="text-foreground">฿{{ tax.toFixed(2) }}</span>
                 </div>
                 <div class="flex justify-between font-bold text-lg">
                   <span class="text-foreground">{{ t.pos.total }}:</span>
-                  <span class="text-foreground">${{ grandTotal.toFixed(2) }}</span>
+                  <span class="text-foreground">฿{{ grandTotal.toFixed(2) }}</span>
                 </div>
               </div>
 
@@ -193,7 +193,7 @@
                 :disabled="cart.length === 0 || loading"
               >
                 <Loader2Icon v-if="loading" class="h-4 w-4 mr-2 animate-spin" />
-                {{ loading ? t.pos.processing : `${t.pos.completeSale} - $${grandTotal.toFixed(2)}` }}
+                {{ loading ? t.pos.processing : `${t.pos.completeSale} - ฿${grandTotal.toFixed(2)}` }}
               </Button>
             </CardContent>
           </Card>

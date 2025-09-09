@@ -27,7 +27,7 @@
             </div>
             <div class="ml-4">
               <p class="text-sm font-medium text-muted-foreground">{{ t.dashboard.totalRevenue }}</p>
-              <p class="text-2xl font-bold text-foreground">${{ formatCurrency(stats.totalRevenue || 0) }}</p>
+              <p class="text-2xl font-bold text-foreground">฿{{ formatCurrency(stats.totalRevenue || 0) }}</p>
             </div>
           </div>
         </Card>
@@ -93,7 +93,7 @@
                   <p class="font-medium text-foreground">{{ sale.customer?.name || t.dashboard.walkInCustomer }}</p>
                   <p class="text-sm text-muted-foreground">{{ formatDate(sale.createdAt) }}</p>
                 </div>
-                <p class="font-bold text-foreground">${{ formatCurrency(sale.grandTotal) }}</p>
+                <p class="font-bold text-foreground">฿{{ formatCurrency(sale.grandTotal) }}</p>
               </div>
             </div>
           </CardContent>

@@ -3,8 +3,8 @@
     <div class="container mx-auto px-4 py-8">
       <!-- Header -->
       <div class="mb-8">
-        <h1 class="text-3xl font-bold text-foreground">Suppliers</h1>
-        <p class="text-muted-foreground">Manage supplier information and inventory</p>
+        <h1 class="text-3xl font-bold text-foreground">{{ t.suppliers.title }}</h1>
+        <p class="text-muted-foreground">{{ t.suppliers.subtitle }}</p>
       </div>
 
       <!-- Search and Add Supplier -->
@@ -13,13 +13,13 @@
           <div class="flex-1 max-w-md">
             <Input 
               v-model="searchQuery" 
-              placeholder="Search suppliers..." 
+              :placeholder="t.suppliers.searchPlaceholder" 
               class="w-full"
             />
           </div>
           <Button @click="showAddSupplier = true">
             <PlusIcon class="h-4 w-4 mr-2" />
-            Add Supplier
+            {{ t.suppliers.addSupplier }}
           </Button>
         </div>
       </Card>
@@ -27,21 +27,21 @@
       <!-- Suppliers Table -->
       <Card class="p-6">
         <CardHeader>
-          <CardTitle>Supplier List</CardTitle>
-          <CardDescription>All registered suppliers in the system</CardDescription>
+          <CardTitle>{{ t.suppliers.supplierList }}</CardTitle>
+          <CardDescription>{{ t.suppliers.supplierListDescription }}</CardDescription>
         </CardHeader>
         <CardContent>
           <div class="overflow-x-auto">
             <table class="w-full">
               <thead>
                 <tr class="border-b border-border">
-                  <th class="text-left p-3 font-medium text-foreground">Company</th>
-                  <th class="text-left p-3 font-medium text-foreground">Contact</th>
-                  <th class="text-left p-3 font-medium text-foreground">Phone</th>
-                  <th class="text-left p-3 font-medium text-foreground">Email</th>
-                  <th class="text-left p-3 font-medium text-foreground">Products</th>
-                  <th class="text-left p-3 font-medium text-foreground">Status</th>
-                  <th class="text-left p-3 font-medium text-foreground">Actions</th>
+                  <th class="text-left p-3 font-medium text-foreground">{{ t.suppliers.company }}</th>
+                  <th class="text-left p-3 font-medium text-foreground">{{ t.suppliers.contact }}</th>
+                  <th class="text-left p-3 font-medium text-foreground">{{ t.suppliers.phone }}</th>
+                  <th class="text-left p-3 font-medium text-foreground">{{ t.suppliers.email }}</th>
+                  <th class="text-left p-3 font-medium text-foreground">{{ t.suppliers.products }}</th>
+                  <th class="text-left p-3 font-medium text-foreground">{{ t.suppliers.status }}</th>
+                  <th class="text-left p-3 font-medium text-foreground">{{ t.suppliers.actions }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -72,7 +72,7 @@
                       'px-2 py-1 rounded-md text-sm font-medium',
                       supplier.status === 'Active' ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
                     ]">
-                      {{ supplier.status }}
+                      {{ supplier.status === 'Active' ? t.suppliers.active : t.suppliers.inactive }}
                     </span>
                   </td>
                   <td class="p-3">
@@ -81,7 +81,7 @@
                         <EyeIcon class="h-4 w-4" />
                       </Button>
                       <Button size="sm" variant="outline" @click="editSupplier(supplier)">
-                        <EditIcon class="h-4 w-4" />
+                        <PencilIcon class="h-4 w-4" />
                       </Button>
                       <Button size="sm" variant="destructive" @click="deleteSupplier(supplier.id)">
                         <TrashIcon class="h-4 w-4" />
@@ -99,45 +99,45 @@
       <div v-if="showAddSupplier" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
         <Card class="w-full max-w-md mx-4">
           <CardHeader>
-            <CardTitle>Add New Supplier</CardTitle>
-            <CardDescription>Enter supplier information</CardDescription>
+            <CardTitle>{{ t.suppliers.addNewSupplier }}</CardTitle>
+            <CardDescription>{{ t.suppliers.addNewSupplierDescription }}</CardDescription>
           </CardHeader>
           <CardContent class="space-y-4">
             <div>
-              <label class="text-sm font-medium text-foreground">Company Name</label>
-              <Input v-model="newSupplier.company" placeholder="Enter company name" />
+              <label class="text-sm font-medium text-foreground">{{ t.suppliers.companyName }}</label>
+              <Input v-model="newSupplier.company" :placeholder="t.suppliers.companyNamePlaceholder" />
             </div>
             <div>
-              <label class="text-sm font-medium text-foreground">Contact Person</label>
-              <Input v-model="newSupplier.contact" placeholder="Enter contact person" />
+              <label class="text-sm font-medium text-foreground">{{ t.suppliers.contactPerson }}</label>
+              <Input v-model="newSupplier.contact" :placeholder="t.suppliers.contactPersonPlaceholder" />
             </div>
             <div>
-              <label class="text-sm font-medium text-foreground">Phone</label>
-              <Input v-model="newSupplier.phone" placeholder="Enter phone number" />
+              <label class="text-sm font-medium text-foreground">{{ t.suppliers.phone }}</label>
+              <Input v-model="newSupplier.phone" :placeholder="t.suppliers.phonePlaceholder" />
             </div>
             <div>
-              <label class="text-sm font-medium text-foreground">Email</label>
-              <Input v-model="newSupplier.email" type="email" placeholder="Enter email" />
+              <label class="text-sm font-medium text-foreground">{{ t.suppliers.email }}</label>
+              <Input v-model="newSupplier.email" type="email" :placeholder="t.suppliers.emailPlaceholder" />
             </div>
             <div>
-              <label class="text-sm font-medium text-foreground">Address</label>
+              <label class="text-sm font-medium text-foreground">{{ t.suppliers.address }}</label>
               <textarea 
                 v-model="newSupplier.address" 
                 class="w-full p-2 border border-input rounded-md bg-background text-foreground resize-none"
                 rows="3"
-                placeholder="Enter address"
+                :placeholder="t.suppliers.addressPlaceholder"
               ></textarea>
             </div>
             <div>
-              <label class="text-sm font-medium text-foreground">Status</label>
+              <label class="text-sm font-medium text-foreground">{{ t.suppliers.statusLabel }}</label>
               <select v-model="newSupplier.status" class="w-full p-2 border border-input rounded-md bg-background text-foreground">
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
+                <option value="Active">{{ t.suppliers.active }}</option>
+                <option value="Inactive">{{ t.suppliers.inactive }}</option>
               </select>
             </div>
             <div class="flex gap-2 justify-end">
-              <Button variant="outline" @click="showAddSupplier = false">Cancel</Button>
-              <Button @click="addSupplier">Add Supplier</Button>
+              <Button variant="outline" @click="showAddSupplier = false">{{ t.suppliers.cancel }}</Button>
+              <Button @click="addSupplier">{{ t.suppliers.addSupplierButton }}</Button>
             </div>
           </CardContent>
         </Card>
@@ -151,7 +151,7 @@ import { ref, computed } from 'vue'
 import { 
   PlusIcon, 
   EyeIcon, 
-  EditIcon, 
+  PencilIcon, 
   TrashIcon 
 } from 'lucide-vue-next'
 
@@ -162,6 +162,9 @@ import CardTitle from '../components/ui/card-title.vue'
 import CardDescription from '../components/ui/card-description.vue'
 import Input from '../components/ui/input.vue'
 import Button from '../components/ui/button.vue'
+
+// Language composable
+const { t } = useLanguage()
 
 // Mock data - replace with actual API calls
 const suppliers = ref([

@@ -1,0 +1,15 @@
+{
+    "framework": "nuxt",
+    "buildCommand": "npm run build",
+    "devCommand": "npm run dev",
+    "installCommand": "npm install",
+    "outputDirectory": ".output/public",
+    "functions": {
+        "app/server/**/*.js": {
+            "runtime": "nodejs18.x"
+        }
+    },
+    "env": {
+        "NUXT_PUBLIC_API_BASE_URL": "@api_base_url"
+    }
+}

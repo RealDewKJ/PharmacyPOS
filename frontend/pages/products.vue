@@ -59,7 +59,7 @@
                 </td>
                 <td class="p-3 text-foreground">{{ product.sku }}</td>
                 <td class="p-3 text-foreground">{{ product.category?.name }}</td>
-                <td class="p-3 font-bold text-foreground">${{ product.price }}</td>
+                                  <td class="p-3 font-bold text-foreground">฿{{ product.price }}</td>
                 <td class="p-3">
                   <span :class="[
                     'px-2 py-1 rounded-full text-xs font-medium',

@@ -24,7 +24,7 @@ export const authMiddleware = new Elysia()
       }
 
       const user = await prisma.user.findUnique({
-        where: { id: payload.id as string },
+        where: { id: payload.userId as string },
         select: {
           id: true,
           email: true,
@@ -68,7 +68,7 @@ export const strictAuthMiddleware = new Elysia()
       }
 
       const user = await prisma.user.findUnique({
-        where: { id: payload.id as string },
+        where: { id: payload.userId as string },
         select: {
           id: true,
           email: true,
