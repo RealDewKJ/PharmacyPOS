@@ -17,30 +17,136 @@ A comprehensive Flutter mobile application for Pharmacy Point of Sale system bui
 
 ## Architecture
 
-The app follows Clean Architecture principles with the following structure:
+The app follows Clean Architecture principles with clear separation of concerns:
 
 ```
 lib/
-├── core/                    # Core utilities and configurations
-│   ├── constants/          # App constants and API endpoints
-│   ├── di/                 # Dependency injection
-│   ├── errors/             # Error handling
-│   ├── network/            # API client
-│   ├── router/             # App routing
-│   └── utils/              # Utility functions
-├── data/                   # Data layer
-│   ├── datasources/        # Remote data sources
-│   ├── models/             # Data models with JSON serialization
-│   └── repositories/       # Repository implementations
-├── domain/                 # Domain layer
-│   ├── entities/           # Business entities
-│   ├── repositories/       # Repository interfaces
-│   └── usecases/           # Business logic use cases
-└── presentation/           # Presentation layer
-    ├── bloc/               # BLoC state management
-    ├── views/              # UI screens
-    └── widgets/            # Reusable UI components
+├── main.dart                           # App entry point
+├── core/                              # Core utilities and configurations
+│   ├── constants/                      # App constants and configurations
+│   │   ├── api_constants.dart         # API endpoints and configurations
+│   │   └── app_theme.dart             # Theme definitions
+│   ├── di/                            # Dependency injection
+│   │   └── injection_container.dart   # Service locator setup
+│   ├── errors/                        # Error handling
+│   │   ├── exceptions.dart            # Custom exceptions
+│   │   └── failures.dart              # Failure classes
+│   ├── network/                       # Network layer
+│   │   └── api_client.dart            # HTTP client configuration
+│   ├── router/                        # Navigation
+│   │   └── app_router.dart            # Route definitions
+│   ├── usecases/                      # Base use case
+│   │   └── usecase.dart               # Abstract use case class
+│   └── utils/                         # Utility functions
+│       ├── constants.dart             # App constants
+│       ├── theme_provider.dart        # Theme state management
+│       └── validators.dart            # Input validation helpers
+├── data/                              # Data layer (External)
+│   ├── datasources/                   # Data sources
+│   │   ├── auth_remote_datasource.dart
+│   │   ├── dashboard_remote_datasource.dart
+│   │   ├── product_remote_datasource.dart
+│   │   └── sale_remote_datasource.dart
+│   ├── models/                        # Data models (JSON serialization)
+│   │   ├── backup_model.dart
+│   │   ├── dashboard_model.dart
+│   │   ├── pagination_model.dart
+│   │   ├── prescription_model.dart
+│   │   ├── product_model.dart
+│   │   ├── purchase_model.dart
+│   │   ├── sale_model.dart
+│   │   └── user_model.dart
+│   └── repositories/                  # Repository implementations
+│       ├── auth_repository_impl.dart
+│       ├── dashboard_repository_impl.dart
+│       ├── product_repository_impl.dart
+│       └── sale_repository_impl.dart
+├── domain/                            # Domain layer (Business Logic)
+│   ├── entities/                      # Business entities
+│   │   ├── backup.dart
+│   │   ├── dashboard.dart
+│   │   ├── pagination.dart
+│   │   ├── prescription.dart
+│   │   ├── product.dart
+│   │   ├── purchase.dart
+│   │   ├── sale.dart
+│   │   └── user.dart
+│   ├── repositories/                  # Repository interfaces
+│   │   ├── auth_repository.dart
+│   │   ├── backup_repository.dart
+│   │   ├── dashboard_repository.dart
+│   │   ├── prescription_repository.dart
+│   │   ├── product_repository.dart
+│   │   └── sale_repository.dart
+│   └── usecases/                      # Business use cases
+│       ├── auth/                      # Authentication use cases
+│       │   ├── get_current_user_usecase.dart
+│       │   ├── login_usecase.dart
+│       │   ├── logout_usecase.dart
+│       │   └── register_usecase.dart
+│       ├── dashboard/                 # Dashboard use cases
+│       │   ├── get_dashboard_stats_usecase.dart
+│       │   └── get_recent_sales_usecase.dart
+│       └── product/                   # Product use cases
+│           ├── get_product_by_barcode_usecase.dart
+│           └── get_products_usecase.dart
+└── presentation/                      # Presentation layer (UI)
+    ├── bloc/                          # State management (BLoC pattern)
+    │   ├── auth/                      # Authentication BLoC
+    │   │   ├── auth_bloc.dart
+    │   │   ├── auth_event.dart
+    │   │   └── auth_state.dart
+    │   ├── dashboard/                 # Dashboard BLoC
+    │   │   ├── dashboard_bloc.dart
+    │   │   ├── dashboard_event.dart
+    │   │   └── dashboard_state.dart
+    │   └── product/                   # Product BLoC
+    │       ├── product_bloc.dart
+    │       ├── product_event.dart
+    │       └── product_state.dart
+    ├── views/                         # Screen widgets
+    │   ├── dashboard_screen.dart
+    │   ├── login_screen.dart
+    │   └── splash_screen.dart
+    └── widgets/                       # Reusable UI components
+        ├── custom_app_bar.dart
+        ├── custom_card.dart
+        ├── error_widget.dart
+        ├── loading_widget.dart
+        └── responsive_wrapper.dart
 ```
+
+### Architecture Flow
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Presentation  │    │     Domain      │    │      Data       │
+│     Layer       │    │     Layer       │    │     Layer       │
+│                 │    │                 │    │                 │
+│  ┌───────────┐  │    │  ┌───────────┐  │    │  ┌───────────┐  │
+│  │   BLoC    │──┼────┼──│  UseCase  │──┼────┼──│Repository │  │
+│  │           │  │    │  │           │  │    │  │           │  │
+│  └───────────┘  │    │  └───────────┘  │    │  └───────────┘  │
+│  ┌───────────┐  │    │  ┌───────────┐  │    │  ┌───────────┐  │
+│  │   Views   │  │    │  │ Entities  │  │    │  │  Models   │  │
+│  │           │  │    │  │           │  │    │  │           │  │
+│  └───────────┘  │    │  └───────────┘  │    │  └───────────┘  │
+│  ┌───────────┐  │    │                 │    │  ┌───────────┐  │
+│  │  Widgets  │  │    │                 │    │  │DataSource │  │
+│  │           │  │    │                 │    │  │           │  │
+│  └───────────┘  │    │                 │    │  └───────────┘  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+### Key Features of the Architecture:
+
+- **Clean Architecture**: Clear separation between presentation, domain, and data layers
+- **BLoC Pattern**: State management using Business Logic Component pattern
+- **Dependency Injection**: Centralized dependency management
+- **Repository Pattern**: Abstraction layer for data access
+- **Use Cases**: Encapsulation of business logic
+- **Error Handling**: Centralized error management with custom exceptions and failures
+- **Responsive Design**: Mobile-first approach with responsive widgets
 
 ## Getting Started
 
@@ -179,10 +285,17 @@ The app is fully responsive and adapts to different screen sizes:
 
 ## Theme System
 
-The app supports both light and dark themes:
+The app features a modern design system with comprehensive theming:
 
-- **Light Theme**: Clean white background with blue accents
+- **Design System**: Professional color palette with primary color #CD0268 (magenta/pink)
+- **Typography**: Inter font family with responsive text scaling
+- **Light Theme**: Clean white background with modern color scheme
 - **Dark Theme**: Dark background with appropriate contrast
+- **Color Palette**:
+  - Primary: #CD0268 (magenta)
+  - Secondary: #34889E (teal)
+  - Neutral: #212739 (dark), #6B7280 (medium), #9CA3AF (light)
+  - Status: Success (#10B981), Warning (#F59E0B), Error (#EF4444)
 - **Auto Theme**: Follows system theme preference
 - **Manual Toggle**: Users can switch themes manually
 
@@ -278,6 +391,22 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 For support and questions, please contact the development team or create an issue in the repository.
 
 ## Changelog
+
+### Version 1.2.0
+
+- **Design System Update**
+  - New modern color palette with primary color #CD0268 (magenta)
+  - Inter font family implementation
+  - Enhanced typography with responsive text scaling
+  - Updated theme system with comprehensive color definitions
+  - Improved UI components with modern styling
+- **API Configuration**
+  - Updated API base URL to production server
+  - Enhanced API client configuration
+- **Architecture Documentation**
+  - Detailed Clean Architecture folder structure
+  - Comprehensive architecture flow diagram
+  - Enhanced documentation for all layers
 
 ### Version 1.1.0
 

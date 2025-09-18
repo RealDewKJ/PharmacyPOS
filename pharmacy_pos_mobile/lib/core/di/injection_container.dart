@@ -11,7 +11,7 @@ import '../../data/datasources/dashboard_remote_datasource.dart';
 
 // Repositories
 import '../../data/repositories/auth_repository_impl.dart';
-import '../../data/repositories/product_repository_impl.dart';
+import '../../data/repositories/product_mock_repository_impl.dart';
 import '../../data/repositories/sale_repository_impl.dart';
 import '../../data/repositories/dashboard_repository_impl.dart';
 
@@ -69,7 +69,7 @@ Future<void> init() async {
     () => AuthRepositoryImpl(remoteDataSource: sl()),
   );
   sl.registerLazySingleton<ProductRepository>(
-    () => ProductRepositoryImpl(remoteDataSource: sl()),
+    () => ProductMockRepositoryImpl(),
   );
   sl.registerLazySingleton<SaleRepository>(
     () => SaleRepositoryImpl(remoteDataSource: sl()),

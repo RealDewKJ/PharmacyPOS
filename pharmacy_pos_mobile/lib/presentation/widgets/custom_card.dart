@@ -9,6 +9,7 @@ class CustomCard extends StatelessWidget {
   final Color? color;
   final BorderRadius? borderRadius;
   final VoidCallback? onTap;
+  final bool showShadow;
 
   const CustomCard({
     super.key,
@@ -19,15 +20,24 @@ class CustomCard extends StatelessWidget {
     this.color,
     this.borderRadius,
     this.onTap,
+    this.showShadow = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    final card = Card(
-      color: color ?? Theme.of(context).cardColor,
-      elevation: elevation ?? 2,
-      shape: RoundedRectangleBorder(
+    final card = Container(
+      decoration: BoxDecoration(
+        color: color ?? Theme.of(context).cardColor,
         borderRadius: borderRadius ?? BorderRadius.circular(12.r),
+        boxShadow: showShadow
+            ? [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : null,
       ),
       margin: margin ?? EdgeInsets.all(8.w),
       child: Padding(

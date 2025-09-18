@@ -1,10 +1,10 @@
 import 'package:go_router/go_router.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../presentation/views/splash_screen.dart';
 import '../../presentation/views/login_screen.dart';
 import '../../presentation/views/dashboard_screen.dart';
-import '../di/injection_container.dart';
-import '../utils/theme_provider.dart';
+import '../../presentation/views/product_detail_screen.dart';
+import '../../presentation/views/sell_order_screen.dart';
+import '../../presentation/views/header_demo_screen.dart';
 
 class AppRouter {
   static final GoRouter _router = GoRouter(
@@ -20,11 +20,30 @@ class AppRouter {
       ),
       GoRoute(
         path: '/register',
-        builder: (context, state) => const LoginScreen(), // TODO: Create register screen
+        builder: (context, state) =>
+            const LoginScreen(), // TODO: Create register screen
       ),
       GoRoute(
         path: '/dashboard',
         builder: (context, state) => const DashboardScreen(),
+      ),
+      GoRoute(
+        path: '/product-detail',
+        builder: (context, state) {
+          final product = state.extra as dynamic;
+          return ProductDetailScreen(product: product);
+        },
+      ),
+      GoRoute(
+        path: '/sell-order',
+        builder: (context, state) {
+          final product = state.extra as dynamic;
+          return SellOrderScreen(product: product);
+        },
+      ),
+      GoRoute(
+        path: '/header-demo',
+        builder: (context, state) => const HeaderDemoScreen(),
       ),
     ],
     redirect: (context, state) {
