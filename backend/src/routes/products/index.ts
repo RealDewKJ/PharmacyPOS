@@ -1,8 +1,9 @@
-import { Elysia } from 'elysia'
+import { Elysia, t } from 'elysia'
 import { ProductController } from './controllers'
 import { 
   productQuerySchema, 
   productSchema, 
+  productUpdateSchema,
   productsListResponseSchema,
   lowStockResponseSchema,
   expiringProductsQuerySchema,
@@ -94,6 +95,57 @@ export const productRoutes = new Elysia({ prefix: '/products' })
       description: 'Get products expiring within specified days'
     }
   })
+  .post('/generate-barcode', async () => {
+    try {
+      return await ProductController.generateUniqueBarcode()
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : 'Failed to generate barcode'
+      }
+    }
+  }, {
+    detail: {
+      tags: ['Products'],
+      summary: 'Generate Unique Barcode',
+      description: 'Generate a unique barcode for new products',
+      security: [{ bearerAuth: [] }]
+    }
+  })
+  .put('/:id/barcode', async ({ params, body }) => {
+    try {
+      return await ProductController.updateProductBarcode(params.id, body.barcode)
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : 'Failed to update barcode'
+      }
+    }
+  }, {
+    body: t.Object({
+      barcode: t.String()
+    }),
+    detail: {
+      tags: ['Products'],
+      summary: 'Update Product Barcode',
+      description: 'Update barcode for existing product',
+      security: [{ bearerAuth: [] }]
+    }
+  })
+  .get('/without-barcode', async () => {
+    try {
+      return await ProductController.getProductsWithoutBarcode()
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : 'Failed to fetch products without barcode'
+      }
+    }
+  }, {
+    detail: {
+      tags: ['Products'],
+      summary: 'Get Products Without Barcode',
+      description: 'Get list of products that do not have barcode assigned',
+      security: [{ bearerAuth: [] }]
+    }
+  })
   // Protected routes (authentication required)
   .post('/', async ({ body }) => {
     try {
@@ -112,16 +164,20 @@ export const productRoutes = new Elysia({ prefix: '/products' })
       security: [{ bearerAuth: [] }]
     }
   })
-  .put('/:id', async ({ params, body }) => {
+  .put('/:id', async ({ params, body, set }) => {
     try {
+      console.log('Update product request:', { id: params.id, body })
       return await ProductController.updateProduct(params.id, body as any)
     } catch (error) {
+      console.error('Update product error:', error)
+      set.status = 400
       return {
-        error: error instanceof Error ? error.message : 'Failed to update product'
+        error: error instanceof Error ? error.message : 'Failed to update product',
+        details: error instanceof Error ? error.stack : 'Unknown error'
       }
     }
   }, {
-    body: productSchema,
+    body: productUpdateSchema,
     detail: {
       tags: ['Products'],
       summary: 'Update Product',

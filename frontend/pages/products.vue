@@ -6,10 +6,16 @@
           <h1 class="text-3xl font-bold text-foreground">{{ t.products.title }}</h1>
           <p class="text-muted-foreground">{{ t.products.subtitle }}</p>
         </div>
-        <Button @click="showAddModal = true">
-          <PlusIcon class="h-4 w-4 mr-2" />
-          {{ t.products.addProduct }}
-        </Button>
+        <div class="flex gap-3">
+          <Button variant="outline" @click="goToBarcodeScanner">
+            <ScanIcon class="h-4 w-4 mr-2" />
+            สแกนบาร์โค้ด
+          </Button>
+          <Button @click="openAddModal">
+            <PlusIcon class="h-4 w-4 mr-2" />
+            {{ t.products.addProduct }}
+          </Button>
+        </div>
       </div>
 
       <!-- Search and Filters -->
@@ -42,6 +48,7 @@
               <tr class="border-b border-border">
                 <th class="text-left p-3 text-foreground">{{ t.products.name }}</th>
                 <th class="text-left p-3 text-foreground">{{ t.products.sku }}</th>
+                <th class="text-left p-3 text-foreground">{{ t.products.barcode }}</th>
                 <th class="text-left p-3 text-foreground">{{ t.products.category }}</th>
                 <th class="text-left p-3 text-foreground">{{ t.products.price }}</th>
                 <th class="text-left p-3 text-foreground">{{ t.products.stock }}</th>
@@ -58,8 +65,22 @@
                   </div>
                 </td>
                 <td class="p-3 text-foreground">{{ product.sku }}</td>
+                <td class="p-3">
+                  <div v-if="product.barcode" class="flex items-center gap-2">
+                    <span class="text-foreground font-mono text-sm">{{ product.barcode }}</span>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      @click="copyToClipboard(product.barcode)"
+                      class="h-6 w-6 p-0"
+                    >
+                      <CopyIcon class="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <span v-else class="text-muted-foreground text-sm italic">{{ t.products.noBarcode }}</span>
+                </td>
                 <td class="p-3 text-foreground">{{ product.category?.name }}</td>
-                                  <td class="p-3 font-bold text-foreground">฿{{ product.price }}</td>
+                <td class="p-3 font-bold text-foreground">฿{{ formatCurrency(product.price) }}</td>
                 <td class="p-3">
                   <span :class="[
                     'px-2 py-1 rounded-full text-xs font-medium',
@@ -120,108 +141,25 @@
       </Card>
     </div>
 
-    <!-- Add/Edit Product Modal -->
-    <div v-if="showAddModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <Card class="w-full max-w-2xl">
-        <CardHeader>
-          <CardTitle>{{ editingProduct ? t.products.editProduct : t.products.addNewProduct }}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form @submit.prevent="saveProduct" class="space-y-4">
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="text-sm font-medium">{{ t.products.name }}</label>
-                <Input v-model="productForm.name" required />
-              </div>
-              <div>
-                <label class="text-sm font-medium">{{ t.products.sku }}</label>
-                <Input v-model="productForm.sku" required />
-              </div>
-            </div>
-            
-            <div>
-              <label class="text-sm font-medium text-foreground">{{ t.products.description }}</label>
-              <textarea v-model="productForm.description" class="w-full p-2 border border-input rounded-md bg-background text-foreground" rows="3"></textarea>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="text-sm font-medium text-foreground">{{ t.products.category }}</label>
-                <select v-model="productForm.categoryId" class="w-full p-2 border border-input rounded-md bg-background text-foreground" required>
-                  <option value="">{{ t.products.selectCategory }}</option>
-                  <option v-for="category in categories" :key="category.id" :value="category.id">
-                    {{ category.name }}
-                  </option>
-                </select>
-              </div>
-              <div>
-                <label class="text-sm font-medium text-foreground">{{ t.products.supplier }}</label>
-                <select v-model="productForm.supplierId" class="w-full p-2 border border-input rounded-md bg-background text-foreground">
-                  <option value="">{{ t.products.selectSupplier }}</option>
-                  <option v-for="supplier in suppliers" :key="supplier.id" :value="supplier.id">
-                    {{ supplier.name }}
-                  </option>
-                </select>
-              </div>
-            </div>
-            
-            <div class="grid grid-cols-3 gap-4">
-              <div>
-                <label class="text-sm font-medium">{{ t.products.price }}</label>
-                <Input v-model.number="productForm.price" type="number" step="0.01" required />
-              </div>
-              <div>
-                <label class="text-sm font-medium">{{ t.products.costPrice }}</label>
-                <Input v-model.number="productForm.costPrice" type="number" step="0.01" required />
-              </div>
-              <div>
-                <label class="text-sm font-medium">{{ t.products.stockQuantity }}</label>
-                <Input v-model.number="productForm.stockQuantity" type="number" required />
-              </div>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="text-sm font-medium">{{ t.products.minStockLevel }}</label>
-                <Input v-model.number="productForm.minStockLevel" type="number" />
-              </div>
-              <div>
-                <label class="text-sm font-medium">{{ t.products.barcode }}</label>
-                <Input v-model="productForm.barcode" />
-              </div>
-            </div>
-            
-            <div class="flex items-center gap-4">
-              <label class="flex items-center">
-                <input v-model="productForm.requiresPrescription" type="checkbox" class="mr-2" />
-                <span class="text-sm text-foreground">{{ t.products.requiresPrescription }}</span>
-              </label>
-            </div>
-            
-            <div class="flex justify-end gap-2">
-              <Button variant="outline" @click="showAddModal = false">
-                {{ t.customers.cancel }}
-              </Button>
-              <Button type="submit" :disabled="loading">
-                {{ loading ? t.products.saving : (editingProduct ? t.products.update : t.products.create) }}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+    <!-- Product Modal Component -->
+    <ProductModal
+      :is-open="showAddModal"
+      :product="editingProduct"
+      :categories="categories"
+      :suppliers="suppliers"
+      @close="closeModal"
+      @save="handleProductSave"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { PlusIcon, SearchIcon, PencilIcon, TrashIcon } from 'lucide-vue-next'
+import { PlusIcon, SearchIcon, PencilIcon, TrashIcon, CopyIcon, ScanIcon } from 'lucide-vue-next'
 import Card from '../components/ui/card.vue'
-import CardHeader from '../components/ui/card-header.vue'
-import CardContent from '../components/ui/card-content.vue'
-import CardTitle from '../components/ui/card-title.vue'
 import Input from '../components/ui/input.vue'
 import Button from '../components/ui/button.vue'
+import ProductModal from '../components/ProductModal.vue'
 import { useLanguage } from '../composables/useLanguage'
 
 const { t } = useLanguage()
@@ -236,7 +174,7 @@ interface Product {
   costPrice: number
   stockQuantity: number
   minStockLevel: number
-  barcode: string
+  barcode: string | null
   requiresPrescription: boolean
   isActive: boolean
   category?: { name: string }
@@ -268,7 +206,6 @@ const searchQuery = ref('')
 const selectedCategory = ref('')
 const showAddModal = ref(false)
 const editingProduct = ref<Product | null>(null)
-const loading = ref(false)
 
 const pagination = ref<Pagination>({
   page: 1,
@@ -277,19 +214,6 @@ const pagination = ref<Pagination>({
   pages: 0
 })
 
-const productForm = ref({
-  name: '',
-  sku: '',
-  description: '',
-  price: 0,
-  costPrice: 0,
-  stockQuantity: 0,
-  minStockLevel: 10,
-  barcode: '',
-  requiresPrescription: false,
-  categoryId: '',
-  supplierId: ''
-})
 
 const fetchProducts = async () => {
   try {
@@ -327,50 +251,58 @@ const fetchSuppliers = async () => {
   }
 }
 
-const editProduct = (product: Product) => {
-  editingProduct.value = product
-  productForm.value = { ...product }
+const openAddModal = () => {
+  editingProduct.value = null
   showAddModal.value = true
 }
 
-const saveProduct = async () => {
-  loading.value = true
-  
+const closeModal = () => {
+  showAddModal.value = false
+  editingProduct.value = null
+}
+
+const editProduct = (product: Product) => {
+  editingProduct.value = product
+  showAddModal.value = true
+}
+
+const handleProductSave = async (productData: any) => {
   try {
     if (editingProduct.value) {
-      await $fetch(`${config.public.apiBase}/products/${editingProduct.value.id}`, {
+      const response = await $fetch(`${config.public.apiBase}/products/${editingProduct.value.id}`, {
         method: 'PUT',
-        body: productForm.value
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: productData
       })
+      console.log('Update response:', response)
     } else {
-      await $fetch(`${config.public.apiBase}/products`, {
+      const response = await $fetch(`${config.public.apiBase}/products`, {
         method: 'POST',
-        body: productForm.value
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: productData
       })
+      console.log('Create response:', response)
     }
     
-    showAddModal.value = false
-    editingProduct.value = null
-    productForm.value = {
-      name: '',
-      sku: '',
-      description: '',
-      price: 0,
-      costPrice: 0,
-      stockQuantity: 0,
-      minStockLevel: 10,
-      barcode: '',
-      requiresPrescription: false,
-      categoryId: '',
-      supplierId: ''
-    }
-    
+    closeModal()
     await fetchProducts()
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error saving product:', error)
-  } finally {
-    loading.value = false
+    console.error('Error details:', error.data)
+    alert(`Error: ${error.data?.error || error.message}`)
   }
+}
+
+// Utility functions
+const formatCurrency = (value: number): string => {
+  return new Intl.NumberFormat('th-TH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(value)
 }
 
 const deleteProduct = async (id: string) => {
@@ -378,7 +310,10 @@ const deleteProduct = async (id: string) => {
   
   try {
     await $fetch(`${config.public.apiBase}/products/${id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
     })
     await fetchProducts()
   } catch (error) {
@@ -389,6 +324,20 @@ const deleteProduct = async (id: string) => {
 const changePage = (page: number) => {
   pagination.value.page = page
   fetchProducts()
+}
+
+const copyToClipboard = async (text: string) => {
+  try {
+    await navigator.clipboard.writeText(text)
+    // You could add a toast notification here
+    console.log('Barcode copied to clipboard:', text)
+  } catch (error) {
+    console.error('Failed to copy to clipboard:', error)
+  }
+}
+
+const goToBarcodeScanner = () => {
+  navigateTo('/barcode-scanner')
 }
 
 onMounted(() => {

@@ -138,8 +138,17 @@ export class ProductController {
     categoryId: string;
     supplierId?: string;
   }) {
+    // Auto-generate barcode if not provided
+    let barcode = data.barcode
+    if (!barcode) {
+      barcode = await this.generateUniqueBarcodeInternal()
+    }
+
     const product = await prisma.product.create({
-      data,
+      data: {
+        ...data,
+        barcode
+      },
       include: {
         category: true,
         supplier: true
@@ -147,6 +156,50 @@ export class ProductController {
     })
 
     return { product }
+  }
+
+  private static async generateUniqueBarcodeInternal(): Promise<string> {
+    let barcode: string = ''
+    let isUnique = false
+    
+    while (!isUnique) {
+      // Generate 13-digit barcode (EAN-13 format)
+      barcode = this.generateBarcode()
+      
+      // Check if barcode already exists
+      const existingProduct = await prisma.product.findUnique({
+        where: { barcode }
+      })
+      
+      if (!existingProduct) {
+        isUnique = true
+      }
+    }
+    
+    return barcode
+  }
+
+  private static generateBarcode(): string {
+    // Generate a 13-digit barcode starting with 8 (internal use)
+    // Format: 8 + 11 random digits + check digit
+    const prefix = '8'
+    const randomDigits = Math.random().toString().slice(2, 13) // 11 digits
+    const barcodeWithoutCheck = prefix + randomDigits
+    
+    // Calculate check digit (simplified EAN-13 algorithm)
+    const checkDigit = this.calculateCheckDigit(barcodeWithoutCheck)
+    
+    return barcodeWithoutCheck + checkDigit
+  }
+
+  private static calculateCheckDigit(barcode: string): string {
+    let sum = 0
+    for (let i = 0; i < barcode.length; i++) {
+      const digit = parseInt(barcode[i])
+      sum += i % 2 === 0 ? digit : digit * 3
+    }
+    const checkDigit = (10 - (sum % 10)) % 10
+    return checkDigit.toString()
   }
 
   static async updateProduct(id: string, data: Partial<{
@@ -182,5 +235,53 @@ export class ProductController {
     })
 
     return { message: 'Product deleted successfully' }
+  }
+
+  // Generate barcode for manual assignment
+  static async generateUniqueBarcode() {
+    const barcode = await this.generateUniqueBarcodeInternal()
+    return { barcode }
+  }
+
+  // Update barcode for existing product
+  static async updateProductBarcode(id: string, barcode: string) {
+    // Check if barcode already exists
+    const existingProduct = await prisma.product.findUnique({
+      where: { barcode }
+    })
+
+    if (existingProduct && existingProduct.id !== id) {
+      throw new Error('Barcode already exists for another product')
+    }
+
+    const product = await prisma.product.update({
+      where: { id },
+      data: { barcode },
+      select: {
+        id: true,
+        name: true,
+        barcode: true
+      }
+    })
+
+    return { product }
+  }
+
+  // Get products without barcode
+  static async getProductsWithoutBarcode() {
+    const products = await prisma.product.findMany({
+      where: {
+        isActive: true,
+        barcode: null
+      },
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        price: true
+      }
+    })
+
+    return { products }
   }
 }

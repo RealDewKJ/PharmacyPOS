@@ -1,10 +1,13 @@
 import { defineStore } from 'pinia'
+import { useEdenApi } from '../composables/useEdenApi'
 
 interface User {
   id: string
   email: string
   name: string
   role: 'ADMIN' | 'PHARMACIST' | 'CASHIER'
+  isActive: boolean
+  createdAt: string
 }
 
 interface AuthState {
@@ -37,43 +40,59 @@ export const useAuthStore = defineStore('auth', {
     async login(email: string, password: string) {
       this.loading = true
       try {
-        const config = useRuntimeConfig()
-        console.log('Attempting login with API base:', config.public.apiBase)
+        const edenApi = useEdenApi()
+        console.log('Attempting login with Eden API')
+        console.log('Login credentials:', { email, password: '***' })
         
-        const response = await $fetch<{ token: string; user: User }>(`${config.public.apiBase}/auth/login`, {
-          method: 'POST',
-          body: { email, password }
-        })
+        const response = await edenApi.auth.login(email, password)
 
-        this.token = response.token
-        this.user = response.user
-        this.isAuthenticated = true
-
-        // Store in localStorage
-        if (process.client) {
-          localStorage.setItem('token', response.token)
-          localStorage.setItem('user', JSON.stringify(response.user))
+        if (response.error) {
+          throw new Error(response.error)
         }
 
-        return response
+        if (response.token && response.user) {
+          this.token = response.token
+          this.user = response.user
+          this.isAuthenticated = true
+
+          // Store in localStorage
+          if (process.client) {
+            localStorage.setItem('token', response.token)
+            localStorage.setItem('user', JSON.stringify(response.user))
+            if (response.sessionId) {
+              localStorage.setItem('sessionId', response.sessionId)
+            }
+          }
+
+          return response
+        } else {
+          throw new Error('Invalid response from server')
+        }
       } catch (error: any) {
         console.error('Login error:', error)
         console.error('Error details:', {
-          status: error.status,
-          statusCode: error.statusCode,
-          data: error.data,
-          message: error.message
+          message: error.message,
+          response: error.response,
+          status: error.status
         })
         
         let errorMessage = 'Login failed'
-        if (error.status === 500 || error.statusCode === 500) {
+        
+        // Handle HTTP status codes
+        if (error.status === 401) {
+          errorMessage = error.message || 'Invalid credentials'
+        } else if (error.status === 400) {
+          errorMessage = 'Invalid input data. Please check your email and password format.'
+        } else if (error.status === 500) {
+          errorMessage = 'Internal server error. Please try again later.'
+        } else if (error.message?.includes('server')) {
           errorMessage = 'Internal server error. Please check if the backend server is running.'
-        } else if (error.status === 401 || error.statusCode === 401) {
-          errorMessage = error.data?.message || 'Invalid credentials'
-        } else if (error.status === 0 || error.statusCode === 0) {
+        } else if (error.message?.includes('credentials') || error.message?.includes('Invalid')) {
+          errorMessage = 'Invalid credentials'
+        } else if (error.message?.includes('connect')) {
           errorMessage = 'Cannot connect to server. Please check if the backend is running.'
         } else {
-          errorMessage = error.data?.message || error.message || 'Login failed'
+          errorMessage = error.message || 'Login failed'
         }
         
         throw new Error(errorMessage)
@@ -83,6 +102,19 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async logout() {
+      try {
+        // Try to logout from server if we have a session
+        if (process.client) {
+          const sessionId = localStorage.getItem('sessionId')
+          if (sessionId) {
+            const edenApi = useEdenApi(this.token || undefined)
+            await edenApi.auth.logout(sessionId)
+          }
+        }
+      } catch (error) {
+        console.warn('Logout from server failed:', error)
+      }
+
       this.user = null
       this.token = null
       this.isAuthenticated = false
@@ -90,6 +122,7 @@ export const useAuthStore = defineStore('auth', {
       if (process.client) {
         localStorage.removeItem('token')
         localStorage.removeItem('user')
+        localStorage.removeItem('sessionId')
       }
 
       await navigateTo('/login')
@@ -106,24 +139,35 @@ export const useAuthStore = defineStore('auth', {
             this.user = JSON.parse(userStr)
             this.isAuthenticated = true
 
-            // Verify token with backend
-            const config = useRuntimeConfig()
-            console.log('Checking auth with API base:', config.public.apiBase)
+            // Verify token with backend using Eden API
+            const edenApi = useEdenApi(this.token || undefined)
+            console.log('Checking auth with Eden API')
             
-            await $fetch(`${config.public.apiBase}/auth/me`, {
-              headers: {
-                Authorization: `Bearer ${token}`
-              }
-            })
+            const response = await edenApi.auth.getProfile()
+            
+            if (response.error) {
+              throw new Error(response.error)
+            }
+
+            // Update user data if needed
+            if (response.user) {
+              this.user = response.user
+              localStorage.setItem('user', JSON.stringify(response.user))
+            }
           } catch (error: any) {
             // Token is invalid, clear everything
             console.warn('Token validation failed:', error)
             console.warn('Error details:', {
-              status: error.status,
-              statusCode: error.statusCode,
-              data: error.data,
-              message: error.message
+              message: error.message,
+              response: error.response,
+              status: error.status
             })
+            
+            // If it's a 401, the token is definitely invalid
+            if (error.status === 401) {
+              console.warn('Received 401 - token is invalid, logging out')
+            }
+            
             this.logout()
           }
         } else {
@@ -139,18 +183,32 @@ export const useAuthStore = defineStore('auth', {
       if (!this.token) return
 
       try {
-        const config = useRuntimeConfig()
-        const response = await $fetch<{ user: User }>(`${config.public.apiBase}/auth/me`, {
-          headers: {
-            Authorization: `Bearer ${this.token}`
-          }
-        })
+        const edenApi = useEdenApi(this.token || undefined)
+        const response = await edenApi.auth.getProfile()
 
-        this.user = response.user
-        if (process.client) {
-          localStorage.setItem('user', JSON.stringify(response.user))
+        if (response.error) {
+          throw new Error(response.error)
         }
-      } catch (error) {
+
+        if (response.user) {
+          this.user = response.user
+          if (process.client) {
+            localStorage.setItem('user', JSON.stringify(response.user))
+          }
+        }
+      } catch (error: any) {
+        console.warn('Refresh user failed:', error)
+        console.warn('Error details:', {
+          message: error.message,
+          response: error.response,
+          status: error.status
+        })
+        
+        // If it's a 401, the token is invalid
+        if (error.status === 401) {
+          console.warn('Received 401 during user refresh - token is invalid')
+        }
+        
         this.logout()
       }
     }

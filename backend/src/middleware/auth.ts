@@ -6,7 +6,6 @@ export const authMiddleware = new Elysia()
     try {
       const authHeader = context.headers.authorization
       
-      // If no authorization header, return null user (optional auth)
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return { user: null }
       }
@@ -16,7 +15,6 @@ export const authMiddleware = new Elysia()
         return { user: null }
       }
 
-      // Access jwt from context using the plugin name
       const payload = await (context as any).jwt.verify(token)
       
       if (!payload) {
@@ -40,13 +38,11 @@ export const authMiddleware = new Elysia()
 
       return { user }
     } catch (error: any) {
-      // For auth middleware, return null user instead of throwing error
       console.warn('Auth middleware error:', error.message)
       return { user: null }
     }
   })
 
-// Strict auth middleware that requires authentication
 export const strictAuthMiddleware = new Elysia()
   .derive(async (context) => {
     try {
@@ -60,7 +56,6 @@ export const strictAuthMiddleware = new Elysia()
         throw new Error('JWT token is missing')
       }
 
-      // Access jwt from context using the plugin name
       const payload = await (context as any).jwt.verify(token)
       
       if (!payload) {
@@ -88,7 +83,6 @@ export const strictAuthMiddleware = new Elysia()
 
       return { user }
     } catch (error: any) {
-      // Set proper HTTP status code for authentication errors
       context.set.status = 401
       throw new Error(error.message || 'Authentication failed')
     }

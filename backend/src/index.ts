@@ -2,7 +2,6 @@ import { Elysia } from 'elysia'
 import { PrismaClient } from '@prisma/client'
 import { swaggerConfig, corsConfig, jwtConfig, config } from './config'
 
-// Import routes - Clean Architecture
 import { 
   authRoutes, 
   productRoutes, 
@@ -20,15 +19,24 @@ import {
 // Initialize Prisma
 export const prisma = new PrismaClient()
 
+// Application initialization
+console.log('🚀 Starting Pharmacy POS API...')
+
 const app = new Elysia()
   .use(swaggerConfig)
   .use(corsConfig)
   .use(jwtConfig)
-  .get('/', () => ({
+  .get('/status', ({ request }) => {
+    const hostHeader = request.headers.get('host') || ''
+    const [ip, port] = hostHeader.split(':')
+  return {
     message: 'Pharmacy POS API',
     version: '1.0.0',
-    status: 'running'
-  }))
+    status: 'OK',
+    server_ip: ip || 'unknown',
+    server_port: port || 'unknown',
+  }  
+  })
   .get('/health', () => ({
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -79,3 +87,5 @@ console.log(
 console.log(`📚 API Documentation: http://localhost:${app.server?.port}/swagger`)
 
 export type App = typeof app
+
+export { eden } from './eden'

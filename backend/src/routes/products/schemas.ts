@@ -22,6 +22,22 @@ export const productSchema = t.Object({
   supplierId: t.Optional(t.String())
 })
 
+export const productUpdateSchema = t.Object({
+  name: t.Optional(t.String({ minLength: 1 })),
+  description: t.Optional(t.String()),
+  barcode: t.Optional(t.String()),
+  sku: t.Optional(t.String({ minLength: 1 })),
+  price: t.Optional(t.Number({ minimum: 0 })),
+  costPrice: t.Optional(t.Number({ minimum: 0 })),
+  stockQuantity: t.Optional(t.Number({ minimum: 0 })),
+  minStockLevel: t.Optional(t.Number({ minimum: 0 })),
+  expiryDate: t.Optional(t.Date()),
+  requiresPrescription: t.Optional(t.Boolean()),
+  isActive: t.Optional(t.Boolean()),
+  categoryId: t.Optional(t.String()),
+  supplierId: t.Optional(t.String())
+})
+
 export const productResponseSchema = t.Union([
   t.Object({
     product: t.Object({

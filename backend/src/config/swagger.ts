@@ -1,5 +1,11 @@
 import { swagger } from '@elysiajs/swagger'
 
+// Load environment variables
+import { config as dotenvConfig } from 'dotenv'
+dotenvConfig({ path: './env.development' })
+
+const port = parseInt(process.env.PORT || '3001')
+
 export const swaggerConfig = swagger({
   documentation: {
     info: {
@@ -9,7 +15,7 @@ export const swaggerConfig = swagger({
     },
     servers: [
       {
-        url: 'http://localhost:3001',
+        url: `http://localhost:${port}`,
         description: 'Development server'
       }
     ],
@@ -24,6 +30,16 @@ export const swaggerConfig = swagger({
       { name: 'Prescriptions', description: 'Prescription management' },
       { name: 'Users', description: 'User management' },
       { name: 'Dashboard', description: 'Dashboard and analytics' }
-    ]
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'Enter JWT token obtained from login endpoint'
+        }
+      }
+    }
   }
 })

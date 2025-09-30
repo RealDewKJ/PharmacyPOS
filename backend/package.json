@@ -21,11 +21,14 @@
     },
     "dependencies": {
         "@elysiajs/cors": "^0.8.0",
+        "@elysiajs/eden": "^1.4.1",
         "@elysiajs/jwt": "^0.8.0",
         "@elysiajs/swagger": "^0.8.5",
         "@prisma/client": "^5.7.0",
         "bcryptjs": "^2.4.3",
+        "dotenv": "^17.2.2",
         "elysia": "^0.8.17",
+        "redis": "^5.8.2",
         "zod": "^3.22.4"
     },
     "devDependencies": {
