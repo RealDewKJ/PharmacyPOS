@@ -1,8 +1,10 @@
-import { Elysia } from 'elysia'
+import { Elysia, t } from 'elysia'
 import { AuthController } from './controllers'
 import { loginSchema, registerSchema, authResponseSchema, userProfileSchema, logoutSchema, sessionResponseSchema } from './schemas'
 import { jwt } from '@elysiajs/jwt'
-import { sessionMiddleware, requireAuth } from '../../middleware/session'
+import { sessionMiddleware } from '../../middleware/session'
+import { authRateLimit } from '../../middleware/rateLimit'
+import { TokenService } from '../../services/tokenService'
 
 export const authRoutes = new Elysia({ prefix: '/auth' })
   .use(jwt({
@@ -10,7 +12,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     secret: process.env.JWT_SECRET || 'fallback-secret'
   }))
   .use(sessionMiddleware)
-  .onError(({ error, code, set }) => {
+  .onError(({ error, code, set }: any) => {
     if (code === 'VALIDATION') {
      return
     }
@@ -19,22 +21,31 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       message: 'Something went wrong'
     }
   })
-  .post('/login', async ({ body, jwt, set }: any) => {
+  .post('/login', async ({ body, jwt, set, request }: any) => {
     try {
-    
+      const rateLimitCheck = await authRateLimit(request);
+      if (!rateLimitCheck.allowed) {
+        set.status = 429;
+        return {
+          error: rateLimitCheck.message || "Too many login attempts. Please try again in 15 minutes."
+        };
+      }
+      
       const { email, password } = body as { email: string; password: string }
       
       const user = await AuthController.login(email, password)
       
-      const token = await jwt.sign({
-        userId: user.id,
-        email: user.email,
-        role: user.role,
-        sessionId: user.sessionId
-      })
+      // Generate enhanced JWT token pair
+      const { accessToken, refreshToken } = await TokenService.generateTokenPair(
+        jwt,
+        user.id,
+        user.email,
+        user.role
+      )
 
       return {
-        token,
+        token: accessToken,
+        refreshToken,
         user: {
           id: user.id,
           email: user.email,
@@ -80,15 +91,17 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       
       const user = await AuthController.register(email, password, name, role)
       
-      const token = await jwt.sign({
-        userId: user.id,
-        email: user.email,
-        role: user.role,
-        sessionId: user.sessionId
-      })
+      // Generate enhanced JWT token pair
+      const { accessToken, refreshToken } = await TokenService.generateTokenPair(
+        jwt,
+        user.id,
+        user.email,
+        user.role
+      )
 
       return {
-        token,
+        token: accessToken,
+        refreshToken,
         user: {
           id: user.id,
           email: user.email,
@@ -154,6 +167,48 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       summary: 'Get User Profile',
       description: 'Get current user profile information',
       security: [{ bearerAuth: [] }]
+    }
+  })
+  .post('/refresh', async ({ body, jwt, set }: any) => {
+    try {
+      const { refreshToken } = body as { refreshToken: string }
+      
+      if (!refreshToken) {
+        set.status = 400
+        return {
+          error: 'Refresh token is required'
+        }
+      }
+
+      const newAccessToken = await TokenService.refreshAccessToken(jwt, refreshToken)
+      
+      if (!newAccessToken) {
+        set.status = 401
+        return {
+          error: 'Invalid or expired refresh token'
+        }
+      }
+
+      return {
+        token: newAccessToken,
+        message: 'Access token refreshed successfully'
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Token refresh failed'
+      
+      set.status = 401
+      return {
+        error: errorMessage
+      }
+    }
+  }, {
+    body: t.Object({
+      refreshToken: t.String()
+    }),
+    detail: {
+      tags: ['Auth'],
+      summary: 'Refresh Access Token',
+      description: 'Refresh expired access token using refresh token'
     }
   })
   .post('/logout', async ({ body, set }: any) => {

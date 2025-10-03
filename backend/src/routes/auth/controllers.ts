@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { redisService } from '../../services/redis'
+import { BruteForceProtection } from '../../middleware/rateLimit'
 
 const prisma = new PrismaClient()
 
@@ -23,20 +24,32 @@ export class AuthController {
 
     console.log('Login attempt for email:', email)
 
+    // Check if account is locked due to brute force attempts
+    const isAccountLocked = await BruteForceProtection.checkAccountLock(email, 'login')
+    if (isAccountLocked) {
+      throw new Error('Account is temporarily locked due to multiple failed login attempts. Please try again later.')
+    }
+
     const user = await prisma.user.findUnique({
       where: { email }
     })
 
     if (!user) {
+      // Record failed attempt for non-existent user
+      await BruteForceProtection.recordFailedAttempt(email, 'login')
       throw new Error('Invalid credentials')
     }
 
     if (!user.isActive) {
+      // Record failed attempt for inactive user
+      await BruteForceProtection.recordFailedAttempt(email, 'login')
       throw new Error('Account is inactive')
     }
 
     const isValidPassword = await bcrypt.compare(password, user.password)
     if (!isValidPassword) {
+      // Record failed attempt for invalid password
+      await BruteForceProtection.recordFailedAttempt(email, 'login')
       throw new Error('Invalid credentials')
     }
 
