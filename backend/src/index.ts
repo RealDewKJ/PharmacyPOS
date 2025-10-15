@@ -13,7 +13,8 @@ import {
   prescriptionRoutes,
   userRoutes,
   dashboardRoutes,
-  backupRoutes
+  backupRoutes,
+  securityRoutes
 } from './routes'
 
 // Initialize Prisma
@@ -53,6 +54,7 @@ const app = new Elysia()
   .use(userRoutes)
   .use(dashboardRoutes)
   .use(backupRoutes)
+  .use(securityRoutes)
   .onError(({ code, error, set }) => {
     console.error(`Error ${code}:`, error)
     
@@ -87,5 +89,3 @@ console.log(
 console.log(`📚 API Documentation: http://localhost:${app.server?.port}/swagger`)
 
 export type App = typeof app
-
-export { eden } from './eden'

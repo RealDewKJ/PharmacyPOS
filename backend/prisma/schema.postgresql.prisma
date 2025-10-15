@@ -1,1 +1,198 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
 
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("CASHIER")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sales     Sale[]
+  purchases Purchase[]
+
+  @@map("users")
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products Product[]
+
+  @@map("categories")
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  email     String?  @unique
+  phone     String?
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products  Product[]
+  purchases Purchase[]
+
+  @@map("suppliers")
+}
+
+model Product {
+  id                   String    @id @default(cuid())
+  name                 String
+  description          String?
+  barcode              String?   @unique
+  sku                  String    @unique
+  price                Float
+  costPrice            Float
+  stockQuantity        Int       @default(0)
+  minStockLevel        Int       @default(10)
+  expiryDate           DateTime?
+  requiresPrescription Boolean   @default(false)
+  isActive             Boolean   @default(true)
+  categoryId           String
+  supplierId           String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  category          Category           @relation(fields: [categoryId], references: [id])
+  supplier          Supplier?          @relation(fields: [supplierId], references: [id])
+  saleItems         SaleItem[]
+  purchaseItems     PurchaseItem[]
+  prescriptionItems PrescriptionItem[]
+
+  @@map("products")
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?  @unique
+  phone     String?
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sales Sale[]
+
+  @@map("customers")
+}
+
+model Sale {
+  id            String   @id @default(cuid())
+  customerId    String?
+  userId        String
+  total         Float
+  discount      Float    @default(0)
+  tax           Float    @default(0)
+  grandTotal    Float
+  paymentMethod String   @default("CASH")
+  status        String   @default("COMPLETED")
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  customer Customer?  @relation(fields: [customerId], references: [id])
+  user     User       @relation(fields: [userId], references: [id])
+  items    SaleItem[]
+
+  @@map("sales")
+}
+
+model SaleItem {
+  id        String   @id @default(cuid())
+  saleId    String
+  productId String
+  quantity  Int
+  price     Float
+  total     Float
+  createdAt DateTime @default(now())
+
+  sale    Sale    @relation(fields: [saleId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("sale_items")
+}
+
+model Purchase {
+  id         String   @id @default(cuid())
+  supplierId String
+  userId     String
+  total      Float
+  status     String   @default("PENDING")
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  supplierItems PurchaseItem[]
+  user          User           @relation(fields: [userId], references: [id])
+  supplier      Supplier       @relation(fields: [supplierId], references: [id])
+
+  @@map("purchases")
+}
+
+model PurchaseItem {
+  id         String   @id @default(cuid())
+  purchaseId String
+  productId  String
+  quantity   Int
+  costPrice  Float
+  total      Float
+  createdAt  DateTime @default(now())
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id])
+  product  Product  @relation(fields: [productId], references: [id])
+
+  @@map("purchase_items")
+}
+
+model Prescription {
+  id          String   @id @default(cuid())
+  customerId  String
+  doctorName  String
+  doctorPhone String?
+  diagnosis   String?
+  notes       String?
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customerItems PrescriptionItem[]
+
+  @@map("prescriptions")
+}
+
+model PrescriptionItem {
+  id             String   @id @default(cuid())
+  prescriptionId String
+  productId      String
+  dosage         String
+  frequency      String
+  duration       String
+  quantity       Int
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  prescription Prescription @relation(fields: [prescriptionId], references: [id])
+  product      Product      @relation(fields: [productId], references: [id])
+
+  @@map("prescription_items")
+}

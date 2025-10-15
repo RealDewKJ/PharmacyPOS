@@ -8,14 +8,14 @@
 - **Database**: Prisma ORM with SQLite (Development) / PostgreSQL (Production)
 - **Authentication**: JWT with Redis session management
 - **API**: RESTful API with Swagger documentation
-- **Type Safety**: Full TypeScript support with Eden Treaty integration
+- **Type Safety**: Full TypeScript support
 
 ### Frontend (Nuxt 3 + Vue 3 + TypeScript)
 
 - **Framework**: Nuxt 3 with Vue 3 Composition API
 - **Styling**: Tailwind CSS with custom theme system
 - **State Management**: Pinia stores
-- **Type Safety**: Full TypeScript with Eden API integration
+- **Type Safety**: Full TypeScript support
 - **UI Components**: Custom component library with Radix Vue
 
 ---
@@ -534,7 +534,7 @@
 - **UI Library**: Vue 3 + Radix Vue
 - **Styling**: Tailwind CSS
 - **State Management**: Pinia
-- **Type Safety**: TypeScript + Eden Treaty
+- **Type Safety**: TypeScript
 - **Build Tool**: Vite
 
 ### Development

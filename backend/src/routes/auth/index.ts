@@ -33,7 +33,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       
       const { email, password } = body as { email: string; password: string }
       
-      const user = await AuthController.login(email, password)
+      const user = await AuthController.login(email, password, { headers: request.headers, request })
       
       // Generate enhanced JWT token pair
       const { accessToken, refreshToken } = await TokenService.generateTokenPair(
@@ -79,7 +79,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       description: 'Authenticate user with email and password'
     }
   })
-  .post('/register', async ({ body, jwt, set }: any) => {
+  .post('/register', async ({ body, jwt, set, request }: any) => {
     try {
      
       const { email, password, name, role } = body as { 
@@ -89,7 +89,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
         role?: string 
       }
       
-      const user = await AuthController.register(email, password, name, role)
+      const user = await AuthController.register(email, password, name, role, { headers: request.headers, request })
       
       // Generate enhanced JWT token pair
       const { accessToken, refreshToken } = await TokenService.generateTokenPair(
@@ -211,7 +211,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       description: 'Refresh expired access token using refresh token'
     }
   })
-  .post('/logout', async ({ body, set }: any) => {
+  .post('/logout', async ({ body, set, request }: any) => {
     try {
       // Check if body exists and has required fields
       if (!body || typeof body !== 'object') {
@@ -230,7 +230,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
         }
       }
 
-      const success = await AuthController.logout(sessionId)
+      const success = await AuthController.logout(sessionId, { headers: request.headers, request })
       
       return {
         success,
@@ -287,7 +287,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       security: [{ bearerAuth: [] }]
     }
   })
-  .post('/refresh-session', async ({ body, set }: any) => {
+  .post('/refresh-session', async ({ body, set, request }: any) => {
     try {
       // Check if body exists and has required fields
       if (!body || typeof body !== 'object') {
@@ -306,7 +306,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
         }
       }
 
-      const success = await AuthController.refreshSession(sessionId)
+      const success = await AuthController.refreshSession(sessionId, { headers: request.headers, request })
       
       return {
         success,

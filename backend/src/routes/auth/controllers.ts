@@ -2,6 +2,9 @@ import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { redisService } from '../../services/redis'
 import { BruteForceProtection } from '../../middleware/rateLimit'
+import { SecurityLogger } from '../../utils/securityLogger'
+import { SuspiciousActivityDetector } from '../../services/suspiciousActivityDetector'
+import { extractSecurityContext } from '../../middleware/securityContext'
 
 const prisma = new PrismaClient()
 
@@ -11,7 +14,7 @@ const SESSION_KEY_PREFIX = 'session:'
 const USER_SESSIONS_KEY_PREFIX = 'user_sessions:'
 
 export class AuthController {
-  static async login(email: string, password: string) {
+  static async login(email: string, password: string, context?: any) {
     if (!email || email.trim() === '') {
       throw new Error('Email is required')
     }
@@ -22,11 +25,19 @@ export class AuthController {
       throw new Error('Password must be at least 6 characters')
     }
 
+    // Extract security context
+    const securityContext = context ? extractSecurityContext(context) : { ip: 'unknown', userAgent: undefined }
+    const { ip, userAgent } = securityContext
+
     console.log('Login attempt for email:', email)
+
+    // Log login attempt
+    SecurityLogger.logLoginAttempt(email, ip, false, userAgent)
 
     // Check if account is locked due to brute force attempts
     const isAccountLocked = await BruteForceProtection.checkAccountLock(email, 'login')
     if (isAccountLocked) {
+      SecurityLogger.logAccountLocked(email, ip, 'Account locked due to brute force attempts')
       throw new Error('Account is temporarily locked due to multiple failed login attempts. Please try again later.')
     }
 
@@ -37,12 +48,22 @@ export class AuthController {
     if (!user) {
       // Record failed attempt for non-existent user
       await BruteForceProtection.recordFailedAttempt(email, 'login')
+      SecurityLogger.logFailedLogin(email, ip, 'User not found', userAgent)
+      
+      // Check for suspicious activity
+      await SuspiciousActivityDetector.checkBruteForcePattern(ip, email)
+      
       throw new Error('Invalid credentials')
     }
 
     if (!user.isActive) {
       // Record failed attempt for inactive user
       await BruteForceProtection.recordFailedAttempt(email, 'login')
+      SecurityLogger.logFailedLogin(email, ip, 'Account inactive', userAgent)
+      
+      // Check for suspicious activity
+      await SuspiciousActivityDetector.checkBruteForcePattern(ip, email)
+      
       throw new Error('Account is inactive')
     }
 
@@ -50,6 +71,11 @@ export class AuthController {
     if (!isValidPassword) {
       // Record failed attempt for invalid password
       await BruteForceProtection.recordFailedAttempt(email, 'login')
+      SecurityLogger.logFailedLogin(email, ip, 'Invalid password', userAgent)
+      
+      // Check for suspicious activity
+      await SuspiciousActivityDetector.checkBruteForcePattern(ip, email)
+      
       throw new Error('Invalid credentials')
     }
 
@@ -85,6 +111,18 @@ export class AuthController {
       SESSION_EXPIRE_SECONDS
     )
 
+    // Log successful login and session creation
+    SecurityLogger.logLoginAttempt(email, ip, true, userAgent)
+    SecurityLogger.logSessionCreated(user.id, sessionId, ip)
+    
+    // Check for suspicious activity patterns
+    await SuspiciousActivityDetector.checkSuspiciousActivity(
+      user.id,
+      'successful_login',
+      ip,
+      { email, sessionId }
+    )
+
     return {
       id: user.id,
       email: user.email,
@@ -96,7 +134,7 @@ export class AuthController {
     }
   }
 
-  static async register(email: string, password: string, name: string, role: string = 'CASHIER') {
+  static async register(email: string, password: string, name: string, role: string = 'CASHIER', context?: any) {
     if (!email || email.trim() === '') {
       throw new Error('Email is required')
     }
@@ -113,11 +151,16 @@ export class AuthController {
       throw new Error('Name must be at least 2 characters')
     }
 
+    // Extract security context
+    const securityContext = context ? extractSecurityContext(context) : { ip: 'unknown', userAgent: undefined }
+    const { ip, userAgent } = securityContext
+
     const existingUser = await prisma.user.findUnique({
       where: { email }
     })
 
     if (existingUser) {
+      SecurityLogger.logSecurityViolation('Registration attempt with existing email', undefined, ip, { email, name })
       throw new Error('User already exists')
     }
 
@@ -164,6 +207,10 @@ export class AuthController {
       SESSION_EXPIRE_SECONDS
     )
 
+    // Log successful registration and session creation
+    SecurityLogger.logUserRegistration(email, ip, userAgent)
+    SecurityLogger.logSessionCreated(user.id, sessionId, ip)
+
     return {
       id: user.id,
       email: user.email,
@@ -194,10 +241,14 @@ export class AuthController {
     }
   }
 
-  static async logout(sessionId: string): Promise<boolean> {
+  static async logout(sessionId: string, context?: any): Promise<boolean> {
     if (!sessionId || sessionId.trim() === '') {
       throw new Error('Session ID is required')
     }
+
+    // Extract security context
+    const securityContext = context ? extractSecurityContext(context) : { ip: 'unknown', userAgent: undefined }
+    const { ip } = securityContext
 
     try {
       // Get session data to find user ID
@@ -208,6 +259,9 @@ export class AuthController {
 
       const session = JSON.parse(sessionData)
       const userId = session.userId
+
+      // Log session destruction
+      SecurityLogger.logSessionDestroyed(userId, sessionId, ip)
 
       // Remove session from Redis
       await redisService.del(`${SESSION_KEY_PREFIX}${sessionId}`)
@@ -230,6 +284,7 @@ export class AuthController {
       return true
     } catch (error) {
       console.error('Logout error:', error)
+      SecurityLogger.logSystemError('Logout error', { sessionId, error: error instanceof Error ? error.message : String(error) }, ip)
       return false
     }
   }
@@ -269,10 +324,14 @@ export class AuthController {
     }
   }
 
-  static async refreshSession(sessionId: string): Promise<boolean> {
+  static async refreshSession(sessionId: string, context?: any): Promise<boolean> {
     if (!sessionId || sessionId.trim() === '') {
       throw new Error('Session ID is required')
     }
+
+    // Extract security context
+    const securityContext = context ? extractSecurityContext(context) : { ip: 'unknown', userAgent: undefined }
+    const { ip } = securityContext
 
     try {
       const sessionKey = `${SESSION_KEY_PREFIX}${sessionId}`
@@ -297,10 +356,14 @@ export class AuthController {
       const userSessionsKey = `${USER_SESSIONS_KEY_PREFIX}${session.userId}`
       await redisService.set(userSessionsKey, await redisService.get(userSessionsKey) || '[]', SESSION_EXPIRE_SECONDS)
 
+      // Log session refresh
+      SecurityLogger.logSessionRefresh(session.userId, sessionId, ip)
+
       console.log('Session refreshed successfully for session:', sessionId)
       return true
     } catch (error) {
       console.error('Session refresh error:', error)
+      SecurityLogger.logSystemError('Session refresh error', { sessionId, error: error instanceof Error ? error.message : String(error) }, ip)
       return false
     }
   }
