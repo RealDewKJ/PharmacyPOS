@@ -4,7 +4,9 @@ export const productQuerySchema = t.Object({
   page: t.Optional(t.String()),
   limit: t.Optional(t.String()),
   search: t.Optional(t.String()),
-  category: t.Optional(t.String())
+  category: t.Optional(t.String()),
+  sort: t.Optional(t.String()),
+  includeInactive: t.Optional(t.String())
 })
 
 export const productSchema = t.Object({

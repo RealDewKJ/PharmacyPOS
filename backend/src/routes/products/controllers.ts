@@ -6,20 +6,40 @@ export class ProductController {
     limit?: string;
     search?: string;
     category?: string;
+    sort?: string;
+    includeInactive?: string;
   }) {
-    const { page = '1', limit = '10', search = '', category = '' } = query
+    const { page = '1', limit = '10', search = '', category = '', sort = 'name', includeInactive = 'false' } = query
     const skip = (parseInt(page) - 1) * parseInt(limit)
     
     const where = {
-      isActive: true,
+      // Only filter by isActive if includeInactive is false (default behavior for POS)
+      ...(includeInactive === 'false' && { isActive: true }),
       ...(search && {
         OR: [
-          { name: { contains: search } },
-          { sku: { contains: search } },
-          { barcode: { contains: search } }
+          { name: { contains: search, mode: 'insensitive' as const } },
+          { sku: { contains: search, mode: 'insensitive' as const } },
+          { barcode: { contains: search } },
+          { description: { contains: search, mode: 'insensitive' as const } }
         ]
       }),
       ...(category && { categoryId: category })
+    }
+
+    // Determine sort order
+    let orderBy: any = { name: 'asc' }
+    if (sort === 'popular') {
+      // For now, we'll sort by name since we don't have sales tracking yet
+      // In the future, this could be based on actual sales data
+      orderBy = { name: 'asc' }
+    } else if (sort === 'price_asc') {
+      orderBy = { price: 'asc' }
+    } else if (sort === 'price_desc') {
+      orderBy = { price: 'desc' }
+    } else if (sort === 'stock_low') {
+      orderBy = { stockQuantity: 'asc' }
+    } else if (sort === 'name') {
+      orderBy = { name: 'asc' }
     }
 
     const [products, total] = await Promise.all([
@@ -31,7 +51,7 @@ export class ProductController {
           category: true,
           supplier: true
         },
-        orderBy: { name: 'asc' }
+        orderBy
       }),
       prisma.product.count({ where })
     ])
@@ -66,12 +86,9 @@ export class ProductController {
   static async getProductByBarcode(barcode: string) {
     const product = await prisma.product.findUnique({
       where: { barcode },
-      select: {
-        id: true,
-        name: true,
-        price: true,
-        stockQuantity: true,
-        requiresPrescription: true
+      include: {
+        category: true,
+        supplier: true
       }
     })
 

@@ -31,15 +31,16 @@
           <CardDescription>{{ t.suppliers.supplierListDescription }}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div class="overflow-x-auto">
+          <div v-if="loading" class="flex justify-center items-center py-8">
+            <div class="text-muted-foreground">Loading suppliers...</div>
+          </div>
+          <div v-else class="overflow-x-auto">
             <table class="w-full">
               <thead>
                 <tr class="border-b border-border">
                   <th class="text-left p-3 font-medium text-foreground">{{ t.suppliers.company }}</th>
-                  <th class="text-left p-3 font-medium text-foreground">{{ t.suppliers.contact }}</th>
                   <th class="text-left p-3 font-medium text-foreground">{{ t.suppliers.phone }}</th>
                   <th class="text-left p-3 font-medium text-foreground">{{ t.suppliers.email }}</th>
-                  <th class="text-left p-3 font-medium text-foreground">{{ t.suppliers.products }}</th>
                   <th class="text-left p-3 font-medium text-foreground">{{ t.suppliers.status }}</th>
                   <th class="text-left p-3 font-medium text-foreground">{{ t.suppliers.actions }}</th>
                 </tr>
@@ -50,29 +51,23 @@
                     <div class="flex items-center gap-3">
                       <div class="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
                         <span class="text-sm font-medium text-primary">
-                          {{ supplier.company.charAt(0).toUpperCase() }}
+                          {{ supplier.name.charAt(0).toUpperCase() }}
                         </span>
                       </div>
                       <div>
-                        <div class="font-medium text-foreground">{{ supplier.company }}</div>
+                        <div class="font-medium text-foreground">{{ supplier.name }}</div>
                         <div class="text-sm text-muted-foreground">ID: {{ supplier.id }}</div>
                       </div>
                     </div>
                   </td>
-                  <td class="p-3 text-foreground">{{ supplier.contact }}</td>
-                  <td class="p-3 text-foreground">{{ supplier.phone }}</td>
-                  <td class="p-3 text-foreground">{{ supplier.email }}</td>
-                  <td class="p-3">
-                    <span class="px-2 py-1 bg-primary/10 text-primary rounded-md text-sm">
-                      {{ supplier.products }}
-                    </span>
-                  </td>
+                  <td class="p-3 text-foreground">{{ supplier.phone || '-' }}</td>
+                  <td class="p-3 text-foreground">{{ supplier.email || '-' }}</td>
                   <td class="p-3">
                     <span :class="[
                       'px-2 py-1 rounded-md text-sm font-medium',
-                      supplier.status === 'Active' ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                      supplier.isActive ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
                     ]">
-                      {{ supplier.status === 'Active' ? t.suppliers.active : t.suppliers.inactive }}
+                      {{ supplier.isActive ? t.suppliers.active : t.suppliers.inactive }}
                     </span>
                   </td>
                   <td class="p-3">
@@ -95,21 +90,17 @@
         </CardContent>
       </Card>
 
-      <!-- Add Supplier Modal -->
-      <div v-if="showAddSupplier" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <!-- Add/Edit Supplier Modal -->
+      <div v-if="showAddSupplier || showEditSupplier" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
         <Card class="w-full max-w-md mx-4">
           <CardHeader>
-            <CardTitle>{{ t.suppliers.addNewSupplier }}</CardTitle>
-            <CardDescription>{{ t.suppliers.addNewSupplierDescription }}</CardDescription>
+            <CardTitle>{{ showEditSupplier ? t.suppliers.editSupplier : t.suppliers.addNewSupplier }}</CardTitle>
+            <CardDescription>{{ showEditSupplier ? t.suppliers.editSupplierDescription : t.suppliers.addNewSupplierDescription }}</CardDescription>
           </CardHeader>
           <CardContent class="space-y-4">
             <div>
               <label class="text-sm font-medium text-foreground">{{ t.suppliers.companyName }}</label>
-              <Input v-model="newSupplier.company" :placeholder="t.suppliers.companyNamePlaceholder" />
-            </div>
-            <div>
-              <label class="text-sm font-medium text-foreground">{{ t.suppliers.contactPerson }}</label>
-              <Input v-model="newSupplier.contact" :placeholder="t.suppliers.contactPersonPlaceholder" />
+              <Input v-model="newSupplier.name" :placeholder="t.suppliers.companyNamePlaceholder" />
             </div>
             <div>
               <label class="text-sm font-medium text-foreground">{{ t.suppliers.phone }}</label>
@@ -128,26 +119,28 @@
                 :placeholder="t.suppliers.addressPlaceholder"
               ></textarea>
             </div>
-            <div>
-              <label class="text-sm font-medium text-foreground">{{ t.suppliers.statusLabel }}</label>
-              <select v-model="newSupplier.status" class="w-full p-2 border border-input rounded-md bg-background text-foreground">
-                <option value="Active">{{ t.suppliers.active }}</option>
-                <option value="Inactive">{{ t.suppliers.inactive }}</option>
-              </select>
-            </div>
             <div class="flex gap-2 justify-end">
-              <Button variant="outline" @click="showAddSupplier = false">{{ t.suppliers.cancel }}</Button>
-              <Button @click="addSupplier">{{ t.suppliers.addSupplierButton }}</Button>
+              <Button variant="outline" @click="closeModal">{{ t.suppliers.cancel }}</Button>
+              <Button @click="showEditSupplier ? updateSupplier() : addSupplier()">
+                {{ showEditSupplier ? t.suppliers.updateSupplierButton : t.suppliers.addSupplierButton }}
+              </Button>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      <!-- Supplier Detail Dialog -->
+      <SupplierDetailDialog
+        :is-open="showSupplierDetail"
+        :supplier="selectedSupplier"
+        @close="showSupplierDetail = false"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { 
   PlusIcon, 
   EyeIcon, 
@@ -162,90 +155,138 @@ import CardTitle from '../components/ui/card-title.vue'
 import CardDescription from '../components/ui/card-description.vue'
 import Input from '../components/ui/input.vue'
 import Button from '../components/ui/button.vue'
+import { useLanguage } from '../composables/useLanguage'
+import { useApi } from '../composables/useApi'
+import SupplierDetailDialog from '../components/SupplierDetailDialog.vue'
+import type { Supplier, SuppliersResponse } from '../types/api'
 
 // Language composable
 const { t } = useLanguage()
+const { get, post, put, delete: del } = useApi()
 
-// Mock data - replace with actual API calls
-const suppliers = ref([
-  {
-    id: 'S001',
-    company: 'PharmaCorp Inc.',
-    contact: 'John Smith',
-    phone: '+1 (555) 123-4567',
-    email: 'john.smith@pharmacorp.com',
-    address: '123 Business Ave, City, State 12345',
-    products: 45,
-    status: 'Active'
-  },
-  {
-    id: 'S002',
-    company: 'MedSupply Co.',
-    contact: 'Sarah Johnson',
-    phone: '+1 (555) 987-6543',
-    email: 'sarah.johnson@medsupply.com',
-    address: '456 Industrial Blvd, City, State 12345',
-    products: 32,
-    status: 'Active'
-  },
-  {
-    id: 'S003',
-    company: 'HealthTech Solutions',
-    contact: 'Mike Davis',
-    phone: '+1 (555) 456-7890',
-    email: 'mike.davis@healthtech.com',
-    address: '789 Tech Park, City, State 12345',
-    products: 28,
-    status: 'Inactive'
-  }
-])
+// Supplier data
+const suppliers = ref<Supplier[]>([])
+const loading = ref(false)
 
 const searchQuery = ref('')
 const showAddSupplier = ref(false)
+const showEditSupplier = ref(false)
+const showSupplierDetail = ref(false)
+const selectedSupplier = ref<Supplier | null>(null)
+const editingSupplier = ref<Supplier | null>(null)
 const newSupplier = ref({
-  company: '',
-  contact: '',
-  phone: '',
+  name: '',
   email: '',
-  address: '',
-  status: 'Active'
+  phone: '',
+  address: ''
 })
+
+// API Functions
+const fetchSuppliers = async () => {
+  try {
+    loading.value = true
+    const response = await get<SuppliersResponse>('/suppliers')
+    suppliers.value = response.suppliers
+  } catch (error) {
+    console.error('Error fetching suppliers:', error)
+  } finally {
+    loading.value = false
+  }
+}
 
 const filteredSuppliers = computed(() => {
   if (!searchQuery.value) return suppliers.value
   return suppliers.value.filter(supplier =>
-    supplier.company.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-    supplier.contact.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-    supplier.email.toLowerCase().includes(searchQuery.value.toLowerCase())
+    supplier.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+    (supplier.email && supplier.email.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
+    (supplier.phone && supplier.phone.includes(searchQuery.value))
   )
 })
 
-const viewSupplier = (supplier: any) => {
-  // Implement view supplier details
-  console.log('View supplier:', supplier)
+const viewSupplier = (supplier: Supplier) => {
+  selectedSupplier.value = supplier
+  showSupplierDetail.value = true
 }
 
-const editSupplier = (supplier: any) => {
-  // Implement edit supplier
-  console.log('Edit supplier:', supplier)
+const editSupplier = (supplier: Supplier) => {
+  editingSupplier.value = supplier
+  newSupplier.value = {
+    name: supplier.name,
+    email: supplier.email || '',
+    phone: supplier.phone || '',
+    address: supplier.address || ''
+  }
+  showEditSupplier.value = true
 }
 
-const deleteSupplier = (supplierId: string) => {
-  // Implement delete supplier
-  console.log('Delete supplier:', supplierId)
-  suppliers.value = suppliers.value.filter(s => s.id !== supplierId)
-}
-
-const addSupplier = () => {
-  if (newSupplier.value.company && newSupplier.value.contact) {
-    const supplier = {
-      id: `S${String(suppliers.value.length + 1).padStart(3, '0')}`,
-      ...newSupplier.value,
-      products: 0
-    }
-    suppliers.value.push(supplier)
-    newSupplier.value = { company: '', contact: '', phone: '', email: '', address: '', status: 'Active' }
-    showAddSupplier.value = false
+const deleteSupplier = async (supplierId: string) => {
+  if (!confirm(t.value.suppliers.deleteConfirm)) return
+  
+  try {
+    await del(`/suppliers/${supplierId}`)
+    await fetchSuppliers()
+  } catch (error) {
+    console.error('Error deleting supplier:', error)
   }
 }
+
+const addSupplier = async () => {
+  try {
+    const supplierData = {
+      name: newSupplier.value.name,
+      email: newSupplier.value.email || undefined,
+      phone: newSupplier.value.phone || undefined,
+      address: newSupplier.value.address || undefined
+    }
+    
+    await post('/suppliers', supplierData)
+    showAddSupplier.value = false
+    resetForm()
+    await fetchSuppliers()
+  } catch (error) {
+    console.error('Error adding supplier:', error)
+  }
+}
+
+const updateSupplier = async () => {
+  if (!editingSupplier.value) return
+  
+  try {
+    const supplierData = {
+      name: newSupplier.value.name,
+      email: newSupplier.value.email || undefined,
+      phone: newSupplier.value.phone || undefined,
+      address: newSupplier.value.address || undefined
+    }
+    
+    await put(`/suppliers/${editingSupplier.value.id}`, supplierData)
+    showEditSupplier.value = false
+    editingSupplier.value = null
+    resetForm()
+    await fetchSuppliers()
+  } catch (error) {
+    console.error('Error updating supplier:', error)
+  }
+}
+
+const resetForm = () => {
+  newSupplier.value = {
+    name: '',
+    email: '',
+    phone: '',
+    address: ''
+  }
+}
+
+const closeModal = () => {
+  showAddSupplier.value = false
+  showEditSupplier.value = false
+  editingSupplier.value = null
+  resetForm()
+}
+
+// Load suppliers on mount
+onMounted(() => {
+  fetchSuppliers()
+})
 </script>

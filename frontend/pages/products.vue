@@ -161,36 +161,22 @@ import Input from '../components/ui/input.vue'
 import Button from '../components/ui/button.vue'
 import ProductModal from '../components/ProductModal.vue'
 import { useLanguage } from '../composables/useLanguage'
+import { useApi } from '../composables/useApi'
+import type { 
+  Product, 
+  Category, 
+  Supplier, 
+  ProductsResponse, 
+  CategoriesResponse, 
+  SuppliersResponse,
+  ProductResponse,
+  ErrorResponse
+} from '../types/api'
 
 const { t } = useLanguage()
+const { get, post, put, delete: del } = useApi()
 const config = useRuntimeConfig()
 
-interface Product {
-  id: string
-  name: string
-  sku: string
-  description: string
-  price: number
-  costPrice: number
-  stockQuantity: number
-  minStockLevel: number
-  barcode: string | null
-  requiresPrescription: boolean
-  isActive: boolean
-  category?: { name: string }
-  categoryId: string
-  supplierId: string
-}
-
-interface Category {
-  id: string
-  name: string
-}
-
-interface Supplier {
-  id: string
-  name: string
-}
 
 interface Pagination {
   page: number
@@ -219,13 +205,14 @@ const fetchProducts = async () => {
   try {
     const params = new URLSearchParams({
       page: pagination.value.page.toString(),
-      limit: pagination.value.limit.toString()
+      limit: pagination.value.limit.toString(),
+      includeInactive: 'true' // Include both active and inactive products for admin management
     })
     
     if (searchQuery.value) params.append('search', searchQuery.value)
     if (selectedCategory.value) params.append('category', selectedCategory.value)
     
-    const response = await $fetch(`${config.public.apiBase}/products?${params}`) as any
+    const response = await get<ProductsResponse>(`/products?${params}`)
     products.value = response.products
     pagination.value = response.pagination
   } catch (error) {
@@ -235,7 +222,7 @@ const fetchProducts = async () => {
 
 const fetchCategories = async () => {
   try {
-    const response = await $fetch(`${config.public.apiBase}/categories`) as any
+    const response = await get<CategoriesResponse>('/categories')
     categories.value = response.categories
   } catch (error) {
     console.error('Error fetching categories:', error)
@@ -244,7 +231,7 @@ const fetchCategories = async () => {
 
 const fetchSuppliers = async () => {
   try {
-    const response = await $fetch(`${config.public.apiBase}/suppliers`) as any
+    const response = await get<SuppliersResponse>('/suppliers')
     suppliers.value = response.suppliers
   } catch (error) {
     console.error('Error fetching suppliers:', error)
@@ -266,25 +253,13 @@ const editProduct = (product: Product) => {
   showAddModal.value = true
 }
 
-const handleProductSave = async (productData: any) => {
+const handleProductSave = async (productData: Partial<Product>) => {
   try {
     if (editingProduct.value) {
-      const response = await $fetch(`${config.public.apiBase}/products/${editingProduct.value.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: productData
-      })
+      const response = await put<ProductResponse>(`/products/${editingProduct.value.id}`, productData)
       console.log('Update response:', response)
     } else {
-      const response = await $fetch(`${config.public.apiBase}/products`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: productData
-      })
+      const response = await post<ProductResponse>('/products', productData)
       console.log('Create response:', response)
     }
     
@@ -309,12 +284,7 @@ const deleteProduct = async (id: string) => {
   if (!confirm(t.value.products.deleteConfirm)) return
   
   try {
-    await $fetch(`${config.public.apiBase}/products/${id}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    })
+    await del(`/products/${id}`)
     await fetchProducts()
   } catch (error) {
     console.error('Error deleting product:', error)

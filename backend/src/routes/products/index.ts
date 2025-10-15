@@ -9,10 +9,10 @@ import {
   expiringProductsQuerySchema,
   expiringProductsResponseSchema
 } from './schemas'
-import { authMiddleware } from '../../middleware/auth'
+import { sessionMiddleware } from '../../middleware/session'
 
 export const productRoutes = new Elysia({ prefix: '/products' })
-  .use(authMiddleware)
+  .use(sessionMiddleware)
   // Public routes (no authentication required)
   .get('/', async ({ query }) => {
     try {

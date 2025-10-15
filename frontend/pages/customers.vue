@@ -31,7 +31,10 @@
           <CardDescription>{{ t.customers.customerListDescription }}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div class="overflow-x-auto">
+          <div v-if="loading" class="flex justify-center items-center py-8">
+            <div class="text-muted-foreground">Loading customers...</div>
+          </div>
+          <div v-else class="overflow-x-auto">
             <table class="w-full">
               <thead>
                 <tr class="border-b border-border">
@@ -86,12 +89,12 @@
         </CardContent>
       </Card>
 
-      <!-- Add Customer Modal -->
-      <div v-if="showAddCustomer" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <!-- Add/Edit Customer Modal -->
+      <div v-if="showAddCustomer || showEditCustomer" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
         <Card class="w-full max-w-md mx-4">
           <CardHeader>
-            <CardTitle>{{ t.customers.addNewCustomer }}</CardTitle>
-            <CardDescription>{{ t.customers.addNewCustomerDescription }}</CardDescription>
+            <CardTitle>{{ showEditCustomer ? t.customers.editCustomer : t.customers.addNewCustomer }}</CardTitle>
+            <CardDescription>{{ showEditCustomer ? t.customers.editCustomerDescription : t.customers.addNewCustomerDescription }}</CardDescription>
           </CardHeader>
           <CardContent class="space-y-4">
             <div>
@@ -116,12 +119,21 @@
               ></textarea>
             </div>
             <div class="flex gap-2 justify-end">
-              <Button variant="outline" @click="showAddCustomer = false">{{ t.customers.cancel }}</Button>
-              <Button @click="addCustomer">{{ t.customers.addCustomerButton }}</Button>
+              <Button variant="outline" @click="closeModal">{{ t.customers.cancel }}</Button>
+              <Button @click="showEditCustomer ? updateCustomer() : addCustomer()">
+                {{ showEditCustomer ? t.customers.updateCustomerButton : t.customers.addCustomerButton }}
+              </Button>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      <!-- Customer Detail Dialog -->
+      <CustomerDetailDialog
+        :is-open="showCustomerDetail"
+        :customer="selectedCustomer"
+        @close="showCustomerDetail = false"
+      />
     </div>
   </div>
 </template>
@@ -142,43 +154,24 @@ import CardTitle from '../components/ui/card-title.vue'
 import CardDescription from '../components/ui/card-description.vue'
 import Input from '../components/ui/input.vue'
 import Button from '../components/ui/button.vue'
+import CustomerDetailDialog from '../components/CustomerDetailDialog.vue'
 import { useLanguage } from '../composables/useLanguage'
+import { useApi } from '../composables/useApi'
+import type { Customer, CustomersResponse } from '../types/api'
 
 const { t } = useLanguage()
+const { get, post, put, delete: del } = useApi()
 
-// Mock data - replace with actual API calls
-const customers = ref([
-  {
-    id: 'C001',
-    name: 'John Doe',
-    email: 'john.doe@email.com',
-    phone: '+1 (555) 123-4567',
-    address: '123 Main St, City, State 12345',
-    totalOrders: 15,
-    lastVisit: '2024-01-15'
-  },
-  {
-    id: 'C002',
-    name: 'Jane Smith',
-    email: 'jane.smith@email.com',
-    phone: '+1 (555) 987-6543',
-    address: '456 Oak Ave, City, State 12345',
-    totalOrders: 8,
-    lastVisit: '2024-01-10'
-  },
-  {
-    id: 'C003',
-    name: 'Mike Johnson',
-    email: 'mike.johnson@email.com',
-    phone: '+1 (555) 456-7890',
-    address: '789 Pine Rd, City, State 12345',
-    totalOrders: 23,
-    lastVisit: '2024-01-12'
-  }
-])
+// Customer data
+const customers = ref<Customer[]>([])
+const loading = ref(false)
 
 const searchQuery = ref('')
 const showAddCustomer = ref(false)
+const showCustomerDetail = ref(false)
+const showEditCustomer = ref(false)
+const selectedCustomer = ref<Customer | null>(null)
+const editingCustomer = ref<Customer | null>(null)
 const newCustomer = ref({
   name: '',
   email: '',
@@ -186,42 +179,116 @@ const newCustomer = ref({
   address: ''
 })
 
+// API Functions
+const fetchCustomers = async () => {
+  try {
+    loading.value = true
+    const response = await get<CustomersResponse>('/customers')
+    customers.value = response.customers.map(customer => ({
+      ...customer,
+      totalOrders: Math.floor(Math.random() * 50) + 1, // Mock data for now
+      lastVisit: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    }))
+  } catch (error) {
+    console.error('Error fetching customers:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
 const filteredCustomers = computed(() => {
   if (!searchQuery.value) return customers.value
   return customers.value.filter(customer =>
     customer.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-    customer.email.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-    customer.phone.includes(searchQuery.value)
+    (customer.email && customer.email.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
+    (customer.phone && customer.phone.includes(searchQuery.value))
   )
 })
 
-const viewCustomer = (customer: any) => {
-  // Implement view customer details
-  console.log('View customer:', customer)
+const viewCustomer = (customer: Customer) => {
+  selectedCustomer.value = customer
+  showCustomerDetail.value = true
 }
 
-const editCustomer = (customer: any) => {
-  // Implement edit customer
-  console.log('Edit customer:', customer)
+const editCustomer = (customer: Customer) => {
+  editingCustomer.value = customer
+  newCustomer.value = {
+    name: customer.name,
+    email: customer.email || '',
+    phone: customer.phone || '',
+    address: customer.address || ''
+  }
+  showEditCustomer.value = true
 }
 
-const deleteCustomer = (customerId: string) => {
-  // Implement delete customer
-  console.log('Delete customer:', customerId)
-  customers.value = customers.value.filter(c => c.id !== customerId)
-}
-
-const addCustomer = () => {
-  if (newCustomer.value.name && newCustomer.value.email) {
-    const customer = {
-      id: `C${String(customers.value.length + 1).padStart(3, '0')}`,
-      ...newCustomer.value,
-      totalOrders: 0,
-      lastVisit: new Date().toISOString().split('T')[0]
-    }
-    customers.value.push(customer)
-    newCustomer.value = { name: '', email: '', phone: '', address: '' }
-    showAddCustomer.value = false
+const deleteCustomer = async (customerId: string) => {
+  if (!confirm(t.value.customers.deleteConfirm)) return
+  
+  try {
+    await del(`/customers/${customerId}`)
+    await fetchCustomers()
+  } catch (error) {
+    console.error('Error deleting customer:', error)
   }
 }
+
+const addCustomer = async () => {
+  try {
+    const customerData = {
+      name: newCustomer.value.name,
+      email: newCustomer.value.email || undefined,
+      phone: newCustomer.value.phone || undefined,
+      address: newCustomer.value.address || undefined
+    }
+    
+    await post('/customers', customerData)
+    showAddCustomer.value = false
+    resetForm()
+    await fetchCustomers()
+  } catch (error) {
+    console.error('Error adding customer:', error)
+  }
+}
+
+const updateCustomer = async () => {
+  if (!editingCustomer.value) return
+  
+  try {
+    const customerData = {
+      name: newCustomer.value.name,
+      email: newCustomer.value.email || undefined,
+      phone: newCustomer.value.phone || undefined,
+      address: newCustomer.value.address || undefined
+    }
+    
+    await put(`/customers/${editingCustomer.value.id}`, customerData)
+    showEditCustomer.value = false
+    editingCustomer.value = null
+    resetForm()
+    await fetchCustomers()
+  } catch (error) {
+    console.error('Error updating customer:', error)
+  }
+}
+
+const resetForm = () => {
+  newCustomer.value = {
+    name: '',
+    email: '',
+    phone: '',
+    address: ''
+  }
+}
+
+const closeModal = () => {
+  showAddCustomer.value = false
+  showEditCustomer.value = false
+  editingCustomer.value = null
+  resetForm()
+}
+
+// Load customers on mount
+onMounted(() => {
+  fetchCustomers()
+})
 </script>

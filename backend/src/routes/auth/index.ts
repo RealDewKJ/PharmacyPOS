@@ -2,7 +2,7 @@ import { Elysia, t } from 'elysia'
 import { AuthController } from './controllers'
 import { loginSchema, registerSchema, authResponseSchema, userProfileSchema, logoutSchema, sessionResponseSchema } from './schemas'
 import { jwt } from '@elysiajs/jwt'
-import { sessionMiddleware } from '../../middleware/session'
+import { sessionMiddleware, requireAuth } from '../../middleware/session'
 import { authRateLimit } from '../../middleware/rateLimit'
 import { TokenService } from '../../services/tokenService'
 
@@ -135,6 +135,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       description: 'Register a new user account'
     }
   })
+  .use(requireAuth)
   .get('/me', async ({ session, set }: any) => {
     try {
       if (!session) {
@@ -144,10 +145,18 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
         }
       }
 
+      if (!session.userId) {
+        set.status = 401
+        return {
+          error: 'Invalid session data'
+        }
+      }
+      
       const user = await AuthController.getProfile(session.userId)
       return { user }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Authentication failed'
+      console.error('Auth /me endpoint error:', errorMessage)
       
       if (errorMessage === 'User not found') {
         set.status = 401
@@ -156,6 +165,7 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
         }
       }
       
+      set.status = 500
       return {
         error: errorMessage
       }
