@@ -1,6 +1,7 @@
 import { Elysia } from 'elysia'
 import { jwt } from '@elysiajs/jwt'
-import { AuthController } from '../routes/auth/controllers'
+import { Auth } from '../routes/auth/service'
+import { SecurityLogger } from '../utils/securityLogger'
 
 export interface SessionData {
   userId: string
@@ -20,30 +21,32 @@ declare global {
 }
 
 export const sessionMiddleware = new Elysia({ name: 'session' })
-  .derive(async ({ headers, jwt }: any) => {
+  .derive(async ({ headers, jwt, request }: any) => {
     try {
       const authHeader = headers.authorization
+      const ip = request?.headers?.get('x-forwarded-for') || request?.headers?.get('x-real-ip') || 'unknown'
+      
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        console.log('No valid authorization header found')
+        SecurityLogger.logAuthFailure('No valid authorization header', ip)
         return { session: null }
       }
 
       const token = authHeader.replace('Bearer ', '')
       if (!token) {
-        console.log('No token found in authorization header')
+        SecurityLogger.logAuthFailure('No token found in authorization header', ip)
         return { session: null }
       }
       
       // Verify JWT token
       const payload = await jwt.verify(token) as { sub: string; userId?: string; email: string; role: string; sessionId?: string; exp?: number }
       if (!payload) {
-        console.log('JWT token verification failed')
+        SecurityLogger.logAuthFailure('JWT token verification failed', ip)
         return { session: null }
       }
 
       // Check if token is expired
       if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-        console.log('JWT token has expired')
+        SecurityLogger.logAuthFailure('JWT token has expired', ip)
         return { session: null }
       }
 
@@ -51,16 +54,16 @@ export const sessionMiddleware = new Elysia({ name: 'session' })
       const userId = payload.sub || payload.userId
       
       if (!userId) {
-        console.log('JWT token missing userId/sub')
+        SecurityLogger.logAuthFailure('JWT token missing userId/sub', ip)
         return { session: null }
       }
 
       // Validate session in Redis if sessionId is provided
       if (payload.sessionId) {
         try {
-          const redisSession = await AuthController.validateSession(payload.sessionId)
+          const redisSession = await Auth.validateSession(payload.sessionId)
           if (!redisSession) {
-            console.log('Redis session validation failed for sessionId:', payload.sessionId)
+            SecurityLogger.logAuthFailure(`Redis session validation failed for sessionId: ${payload.sessionId}`, ip)
             return { session: null } // Session invalid or expired
           }
           
@@ -75,7 +78,7 @@ export const sessionMiddleware = new Elysia({ name: 'session' })
             } as SessionData
           }
         } catch (error) {
-          console.log('Error validating Redis session:', error)
+          SecurityLogger.logAuthFailure(`Error validating Redis session: ${error}`, ip)
           return { session: null }
         }
       }
@@ -92,7 +95,8 @@ export const sessionMiddleware = new Elysia({ name: 'session' })
         } as SessionData
       }
     } catch (error) {
-      console.error('Session middleware error:', error)
+      const ip = request?.headers?.get('x-forwarded-for') || request?.headers?.get('x-real-ip') || 'unknown'
+      SecurityLogger.logAuthFailure(`Session middleware error: ${error}`, ip)
       return { session: null }
     }
   })

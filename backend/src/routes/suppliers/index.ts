@@ -1,10 +1,10 @@
 import { Elysia, t } from 'elysia'
-import { SupplierController } from './controllers'
+import { SupplierController } from './service'
 import { 
   supplierSchema, 
   supplierResponseSchema,
   suppliersListResponseSchema
-} from './schemas'
+} from './model'
 import { sessionMiddleware } from '../../middleware/session'
 
 export const supplierRoutes = new Elysia({ prefix: '/suppliers' })

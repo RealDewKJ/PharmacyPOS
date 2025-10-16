@@ -1,12 +1,12 @@
 import { Elysia, t } from 'elysia'
-import { UserController } from './controllers'
+import { UserController } from './service'
 import {
   updateUserProfileSchema,
   userParamsSchema,
   userResponseSchema,
   usersListResponseSchema,
   deactivateUserResponseSchema
-} from './schemas'
+} from './model'
 import { strictAuthMiddleware } from '../../middleware/auth'
 
 export const userRoutes = new Elysia({ prefix: '/users' })

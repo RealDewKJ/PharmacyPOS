@@ -156,4 +156,14 @@ export class SecurityLogger {
       timestamp: new Date().toISOString(),
     });
   }
+
+  static logAuthFailure(reason: string, ip: string, userId?: string) {
+    securityLogger.warn("Authentication failure", {
+      event: "AUTH_FAILURE",
+      reason,
+      ip,
+      userId,
+      timestamp: new Date().toISOString(),
+    });
+  }
 }

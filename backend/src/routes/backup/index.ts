@@ -1,12 +1,12 @@
 import { Elysia, t } from 'elysia'
-import { BackupController } from './controllers'
+import { BackupController } from './service'
 import {
   backupParamsSchema,
   createBackupResponseSchema,
   listBackupsResponseSchema,
   restoreBackupResponseSchema,
   deleteBackupResponseSchema
-} from './schemas'
+} from './model'
 import { authMiddleware } from '../../middleware/auth'
 
 export const backupRoutes = new Elysia({ prefix: '/api/backup' })

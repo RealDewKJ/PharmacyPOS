@@ -1,11 +1,11 @@
 import { Elysia, t } from 'elysia'
-import { CategoryController } from './controllers'
+import { CategoryController } from './service'
 import { 
   categorySchema, 
   categoryResponseSchema,
   categoryWithProductsResponseSchema,
   categoriesListResponseSchema
-} from './schemas'
+} from './model'
 import { sessionMiddleware } from '../../middleware/session'
 
 export const categoryRoutes = new Elysia({ prefix: '/categories' })

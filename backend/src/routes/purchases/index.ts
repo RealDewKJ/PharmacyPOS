@@ -1,11 +1,11 @@
 import { Elysia, t } from 'elysia'
-import { PurchaseController } from './controllers'
+import { PurchaseController } from './service'
 import {
   createPurchaseSchema,
   purchaseParamsSchema,
   purchaseResponseSchema,
   purchasesListResponseSchema
-} from './schemas'
+} from './model'
 import { authMiddleware } from '../../middleware/auth'
 
 export const purchaseRoutes = new Elysia({ prefix: '/purchases' })

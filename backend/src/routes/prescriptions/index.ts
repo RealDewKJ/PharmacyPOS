@@ -1,12 +1,12 @@
 import { Elysia, t } from 'elysia'
-import { PrescriptionController } from './controllers'
+import { PrescriptionController } from './service'
 import {
   createPrescriptionSchema,
   updatePrescriptionStatusSchema,
   prescriptionParamsSchema,
   prescriptionResponseSchema,
   prescriptionsListResponseSchema
-} from './schemas'
+} from './model'
 import { authMiddleware } from '../../middleware/auth'
 
 export const prescriptionRoutes = new Elysia({ prefix: '/prescriptions' })

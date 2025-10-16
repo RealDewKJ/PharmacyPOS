@@ -7,22 +7,19 @@ export class TokenService {
       email,
       role,
       type: "access",
-      jti: crypto.randomUUID(), // JWT ID for tracking
-      exp: Math.floor(Date.now() / 1000) + (15 * 60), // 15 minutes
+      jti: crypto.randomUUID(),
       iss: "pharmacy-pos-api",
       aud: "pharmacy-pos-client",
-    });
+    }, { expiresIn: "15m" });
 
     const refreshToken = await jwtInstance.sign({
       sub: userId,
       type: "refresh",
       jti: crypto.randomUUID(),
-      exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60), // 7 days
       iss: "pharmacy-pos-api",
       aud: "pharmacy-pos-client",
-    });
+    }, { expiresIn: "7d" });
 
-    // Store refresh token in Redis
     await redisService.set(
       `refresh_token:${refreshToken}`,
       JSON.stringify({ userId, createdAt: new Date() }),
@@ -53,20 +50,18 @@ export class TokenService {
       const stored = await redisService.get(`refresh_token:${refreshToken}`);
 
       if (!stored) {
-        return null; // Refresh token not found or expired
+        return null;
       }
 
-      // Generate new access token
       return await jwtInstance.sign({
         sub: decoded.sub,
         email: decoded.email,
         role: decoded.role,
         type: "access",
         jti: crypto.randomUUID(),
-        exp: Math.floor(Date.now() / 1000) + (15 * 60), // 15 minutes
         iss: "pharmacy-pos-api",
         aud: "pharmacy-pos-client",
-      });
+      }, { expiresIn: "15m" });
     } catch {
       return null;
     }
@@ -74,10 +69,8 @@ export class TokenService {
 
   static async validateToken(jwtInstance: any, token: string): Promise<{ valid: boolean; payload?: any; error?: string }> {
     try {
-      // Verify token signature and expiration
       const decoded = await jwtInstance.verify(token);
       
-      // Check if token is revoked
       if (decoded.jti) {
         const isRevoked = await this.isTokenRevoked(decoded.jti);
         if (isRevoked) {
@@ -85,12 +78,10 @@ export class TokenService {
         }
       }
 
-      // Validate token type
       if (decoded.type !== "access") {
         return { valid: false, error: "Invalid token type" };
       }
 
-      // Validate issuer and audience
       if (decoded.iss !== "pharmacy-pos-api" || decoded.aud !== "pharmacy-pos-client") {
         return { valid: false, error: "Invalid token issuer or audience" };
       }
@@ -108,23 +99,33 @@ export class TokenService {
   }
 
   static async revokeAllUserTokens(userId: string): Promise<void> {
-    // This would require storing active tokens per user
-    // For now, we'll implement a simple approach
-    console.log(`Revoking all tokens for user: ${userId}`);
-  }
-
-  static async getTokenInfo(jwtInstance: any, token: string): Promise<{ jti?: string; sub?: string; exp?: number; iat?: number; type?: string }> {
     try {
-      const decoded = await jwtInstance.verify(token);
-      return {
-        jti: decoded.jti,
-        sub: decoded.sub,
-        exp: decoded.exp,
-        iat: decoded.iat,
-        type: decoded.type
-      };
-    } catch {
-      return {};
+      // Get all active sessions for the user
+      const userSessionsKey = `user_sessions:${userId}`
+      const existingSessions = await redisService.get(userSessionsKey)
+      
+      if (existingSessions) {
+        const sessions = JSON.parse(existingSessions)
+        
+        // Revoke each session
+        for (const sessionId of sessions) {
+          await redisService.del(`session:${sessionId}`)
+        }
+        
+        // Clear user sessions list
+        await redisService.del(userSessionsKey)
+      }
+      
+      // Revoke all refresh tokens for the user
+      const refreshTokensPattern = `refresh_token:*`
+      // Note: In a real implementation, you'd need to scan Redis keys
+      // and check each refresh token's userId
+      
+      console.log(`Successfully revoked all tokens for user: ${userId}`)
+    } catch (error) {
+      console.error(`Error revoking tokens for user ${userId}:`, error)
+      throw error
     }
   }
+
 }

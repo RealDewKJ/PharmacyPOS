@@ -1,5 +1,5 @@
 import { Elysia, t } from 'elysia'
-import { DashboardController } from './controllers'
+import { DashboardController } from './service'
 import {
   salesByPeriodQuerySchema,
   topProductsQuerySchema,
@@ -7,7 +7,7 @@ import {
   recentSalesResponseSchema,
   salesByPeriodResponseSchema,
   topProductsResponseSchema
-} from './schemas'
+} from './model'
 import { authMiddleware } from '../../middleware/auth'
 
 export const dashboardRoutes = new Elysia({ prefix: '/dashboard' })

@@ -1,5 +1,5 @@
 import { Elysia, t } from 'elysia'
-import { CustomerController } from './controllers'
+import { CustomerController } from './service'
 import {
   createCustomerSchema,
   updateCustomerSchema,
@@ -7,7 +7,7 @@ import {
   customerResponseSchema,
   customersListResponseSchema,
   deleteCustomerResponseSchema
-} from './schemas'
+} from './model'
 import { authMiddleware } from '../../middleware/auth'
 
 export const customerRoutes = new Elysia({ prefix: '/customers' })

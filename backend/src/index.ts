@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client'
 import { swaggerConfig, corsConfig, jwtConfig, config } from './config'
 
 import { 
-  authRoutes, 
+  auth, 
   productRoutes, 
   categoryRoutes,
   supplierRoutes,
@@ -41,7 +41,7 @@ const app = new Elysia()
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
   }))
-  .use(authRoutes)
+  .use(auth)
   .use(productRoutes)
   .use(categoryRoutes)
   .use(supplierRoutes)
@@ -65,17 +65,37 @@ const app = new Elysia()
       return { message: 'Validation error', details: error }
     }
     
+    // Handle custom status codes from our services
+    if (error.status) {
+      set.status = error.status
+      return { error: error.message }
+    }
+    
+    // Handle specific error messages
     if (error.message?.includes('Authorization') || 
         error.message?.includes('JWT') || 
         error.message?.includes('token') ||
         error.message?.includes('User not found') ||
-        error.message?.includes('inactive')) {
+        error.message?.includes('inactive') ||
+        error.message?.includes('Invalid email or password') ||
+        error.message?.includes('Account is inactive')) {
       set.status = 401
-      return { message: error.message || 'Authentication failed' }
+      return { error: error.message || 'Authentication failed' }
     }
     
+    if (error.message?.includes('locked') || error.message?.includes('too many')) {
+      set.status = 429
+      return { error: error.message || 'Too many attempts' }
+    }
+    
+    if (error.message?.includes('already exists')) {
+      set.status = 409
+      return { error: error.message || 'Resource already exists' }
+    }
+    
+    console.error('Unhandled error:', error)
     set.status = 500
-    return { message: 'Internal server error' }
+    return { error: 'Internal server error' }
   })
   .listen(config.port)
 

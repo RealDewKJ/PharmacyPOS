@@ -1,177 +1,137 @@
 import { Elysia, t } from 'elysia'
-import { AuthController } from './controllers'
-import { loginSchema, registerSchema, authResponseSchema, userProfileSchema, logoutSchema, sessionResponseSchema } from './schemas'
-import { jwt } from '@elysiajs/jwt'
-import { sessionMiddleware, requireAuth } from '../../middleware/session'
+import { Auth } from './service'
+import { AuthModel } from './model'
+import { jwtConfig } from '../../config'
+import { sessionMiddleware } from '../../middleware/session'
 import { authRateLimit } from '../../middleware/rateLimit'
 import { TokenService } from '../../services/tokenService'
 
-export const authRoutes = new Elysia({ prefix: '/auth' })
-  .use(jwt({
-    name: 'jwt',
-    secret: process.env.JWT_SECRET || 'fallback-secret'
-  }))
+export const auth = new Elysia({ prefix: '/auth' })
+  .use(jwtConfig)
   .use(sessionMiddleware)
   .onError(({ error, code, set }: any) => {
     if (code === 'VALIDATION') {
-     return
+      return
     }
-    return {
-      error: 'Internal server error',
-      message: 'Something went wrong'
+    
+    // Handle custom status codes from our services
+    if (error.status) {
+      set.status = error.status
+      return { error: error.message }
     }
+    
+    // Handle specific error messages
+    if (error.message?.includes('Invalid email or password') ||
+        error.message?.includes('Account is inactive') ||
+        error.message?.includes('User not found')) {
+      set.status = 401
+      return { error: error.message }
+    }
+    
+    if (error.message?.includes('locked') || error.message?.includes('too many')) {
+      set.status = 429
+      return { error: error.message }
+    }
+    
+    if (error.message?.includes('already exists')) {
+      set.status = 409
+      return { error: error.message }
+    }
+    
+    console.error('Auth route error:', error)
+    set.status = 500
+    return { error: 'Internal server error' }
   })
   .post('/login', async ({ body, jwt, set, request }: any) => {
-    try {
-      const rateLimitCheck = await authRateLimit(request);
-      if (!rateLimitCheck.allowed) {
-        set.status = 429;
-        return {
-          error: rateLimitCheck.message || "Too many login attempts. Please try again in 15 minutes."
-        };
-      }
-      
-      const { email, password } = body as { email: string; password: string }
-      
-      const user = await AuthController.login(email, password, { headers: request.headers, request })
-      
-      // Generate enhanced JWT token pair
-      const { accessToken, refreshToken } = await TokenService.generateTokenPair(
-        jwt,
-        user.id,
-        user.email,
-        user.role
-      )
+    const rateLimitCheck = await authRateLimit(request);
+    if (!rateLimitCheck.allowed) {
+      set.status = 429;
+      return {
+        error: rateLimitCheck.message || "Too many login attempts. Please try again in 15 minutes."
+      };
+    }
+    
+    const { email, password } = body as AuthModel.LoginBody
+    console.log('Login request:', { email, passwordLength: password.length })
+    const result = await Auth.login({ email, password }, { headers: request.headers, request })
+    
+    const { accessToken, refreshToken } = await TokenService.generateTokenPair(
+      jwt,
+      result.user.id,
+      result.user.email,
+      result.user.role
+    )
 
-      return {
-        token: accessToken,
-        refreshToken,
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          isActive: user.isActive,
-          createdAt: user.createdAt
-        },
-        sessionId: user.sessionId
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Login failed'
-      
-      if (errorMessage === 'Invalid credentials' || errorMessage === 'Account is inactive') {
-        set.status = 401
-        return {
-          error: errorMessage
-        }
-      }
-      
-      return {
-        error: errorMessage
-      }
+    return {
+      token: accessToken,
+      refreshToken,
+      user: result.user,
+      sessionId: result.sessionId
     }
   }, {
-    body: loginSchema,
-    response: authResponseSchema,
+    body: AuthModel.loginBody,
+    response: {
+      200: AuthModel.loginSuccess,
+      401: AuthModel.errorResponse,
+      429: AuthModel.errorResponse
+    },
     detail: {
       tags: ['Auth'],
       summary: 'User Login',
       description: 'Authenticate user with email and password'
     }
   })
-  .post('/register', async ({ body, jwt, set, request }: any) => {
-    try {
-     
-      const { email, password, name, role } = body as { 
-        email: string; 
-        password: string; 
-        name: string; 
-        role?: string 
-      }
-      
-      const user = await AuthController.register(email, password, name, role, { headers: request.headers, request })
-      
-      // Generate enhanced JWT token pair
-      const { accessToken, refreshToken } = await TokenService.generateTokenPair(
-        jwt,
-        user.id,
-        user.email,
-        user.role
-      )
+  .post('/register', async ({ body, jwt, request }: any) => {
+    const { email, password, name, role } = body as AuthModel.RegisterBody
+    
+    const result = await Auth.register({ email, password, name, role }, { headers: request.headers, request })
+    
+    const { accessToken, refreshToken } = await TokenService.generateTokenPair(
+      jwt,
+      result.user.id,
+      result.user.email,
+      result.user.role
+    )
 
-      return {
-        token: accessToken,
-        refreshToken,
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          isActive: user.isActive,
-          createdAt: user.createdAt
-        },
-        sessionId: user.sessionId
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Registration failed'
-      
-      if (errorMessage === 'User already exists') {
-        set.status = 409
-        return {
-          error: errorMessage
-        }
-      }
-      
-      return {
-        error: errorMessage
-      }
+    return {
+      token: accessToken,
+      refreshToken,
+      user: result.user,
+      sessionId: result.sessionId
     }
   }, {
-    body: registerSchema,
-    response: authResponseSchema,
+    body: AuthModel.registerBody,
+    response: {
+      200: AuthModel.loginSuccess,
+      409: AuthModel.errorResponse,
+      400: AuthModel.errorResponse
+    },
     detail: {
       tags: ['Auth'],
       summary: 'User Registration',
       description: 'Register a new user account'
     }
   })
-  .use(requireAuth)
   .get('/me', async ({ session, set }: any) => {
-    try {
-      if (!session) {
-        set.status = 401
-        return {
-          error: 'No valid session found'
-        }
-      }
-
-      if (!session.userId) {
-        set.status = 401
-        return {
-          error: 'Invalid session data'
-        }
-      }
-      
-      const user = await AuthController.getProfile(session.userId)
-      return { user }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Authentication failed'
-      console.error('Auth /me endpoint error:', errorMessage)
-      
-      if (errorMessage === 'User not found') {
-        set.status = 401
-        return {
-          error: errorMessage
-        }
-      }
-      
-      set.status = 500
+    if (!session || !session.userId) {
+      set.status = 401
       return {
-        error: errorMessage
+        error: 'No valid session found'
+      }
+    }
+    
+    const user = await Auth.getProfile(session.userId)
+    return { 
+      user: {
+        ...user,
+        role: user.role as AuthModel.UserRole
       }
     }
   }, {
-    response: userProfileSchema,
+    response: {
+      200: AuthModel.userProfileSuccess,
+      401: AuthModel.errorResponse
+    },
     detail: {
       tags: ['Auth'],
       summary: 'Get User Profile',
@@ -180,41 +140,40 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     }
   })
   .post('/refresh', async ({ body, jwt, set }: any) => {
-    try {
-      const { refreshToken } = body as { refreshToken: string }
-      
-      if (!refreshToken) {
-        set.status = 400
-        return {
-          error: 'Refresh token is required'
-        }
-      }
-
-      const newAccessToken = await TokenService.refreshAccessToken(jwt, refreshToken)
-      
-      if (!newAccessToken) {
-        set.status = 401
-        return {
-          error: 'Invalid or expired refresh token'
-        }
-      }
-
+    const { refreshToken } = body as { refreshToken: string }
+    
+    if (!refreshToken) {
+      set.status = 400
       return {
-        token: newAccessToken,
-        message: 'Access token refreshed successfully'
+        error: 'Refresh token is required'
       }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Token refresh failed'
-      
+    }
+
+    const newAccessToken = await TokenService.refreshAccessToken(jwt, refreshToken)
+    
+    if (!newAccessToken) {
       set.status = 401
       return {
-        error: errorMessage
+        error: 'Invalid or expired refresh token'
       }
+    }
+
+    return {
+      token: newAccessToken,
+      message: 'Access token refreshed successfully'
     }
   }, {
     body: t.Object({
       refreshToken: t.String()
     }),
+    response: {
+      200: t.Object({
+        token: t.String(),
+        message: t.String()
+      }),
+      400: AuthModel.errorResponse,
+      401: AuthModel.errorResponse
+    },
     detail: {
       tags: ['Auth'],
       summary: 'Refresh Access Token',
@@ -222,45 +181,31 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     }
   })
   .post('/logout', async ({ body, set, request }: any) => {
-    try {
-      // Check if body exists and has required fields
-      if (!body || typeof body !== 'object') {
-        set.status = 400
-        return {
-          error: 'Request body is required'
-        }
-      }
-
-      const { sessionId } = body as { sessionId: string }
-      
-      if (!sessionId || sessionId.trim() === '') {
-        set.status = 400
-        return {
-          error: 'Session ID is required'
-        }
-      }
-
-      const success = await AuthController.logout(sessionId, { headers: request.headers, request })
-      
+    if (!body || typeof body !== 'object') {
+      set.status = 400
       return {
-        success,
-        message: success ? 'Logged out successfully' : 'Session not found'
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Logout failed'
-      
-      // Set 400 status for client errors
-      if (errorMessage.includes('required')) {
-        set.status = 400
-      }
-      
-      return {
-        error: errorMessage
+        error: 'Request body is required'
       }
     }
+
+    const { sessionId } = body as AuthModel.LogoutBody
+    
+    if (!sessionId || sessionId.trim() === '') {
+      set.status = 400
+      return {
+        error: 'Session ID is required'
+      }
+    }
+
+    const result = await Auth.logout({ sessionId }, { headers: request.headers, request })
+    
+    return result
   }, {
-    body: logoutSchema,
-    response: sessionResponseSchema,
+    body: AuthModel.logoutBody,
+    response: {
+      200: AuthModel.sessionResponseSuccess,
+      400: AuthModel.errorResponse
+    },
     detail: {
       tags: ['Auth'],
       summary: 'User Logout',
@@ -268,28 +213,19 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     }
   })
   .post('/logout-all', async ({ session, set }: any) => {
-    try {
-      if (!session) {
-        set.status = 401
-        return {
-          error: 'No valid session found'
-        }
-      }
-
-      const deletedCount = await AuthController.logoutAllSessions(session.userId)
-      
+    if (!session) {
+      set.status = 401
       return {
-        success: true,
-        message: `Logged out from ${deletedCount} sessions`,
-        deletedSessions: deletedCount
-      }
-    } catch (error) {
-      return {
-        error: error instanceof Error ? error.message : 'Logout failed'
+        error: 'No valid session found'
       }
     }
+
+    return await Auth.logoutAllSessions(session.userId)
   }, {
-    response: sessionResponseSchema,
+    response: {
+      200: AuthModel.sessionResponseSuccess,
+      401: AuthModel.errorResponse
+    },
     detail: {
       tags: ['Auth'],
       summary: 'Logout All Sessions',
@@ -298,45 +234,29 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     }
   })
   .post('/refresh-session', async ({ body, set, request }: any) => {
-    try {
-      // Check if body exists and has required fields
-      if (!body || typeof body !== 'object') {
-        set.status = 400
-        return {
-          error: 'Request body is required'
-        }
-      }
-
-      const { sessionId } = body as { sessionId: string }
-      
-      if (!sessionId || sessionId.trim() === '') {
-        set.status = 400
-        return {
-          error: 'Session ID is required'
-        }
-      }
-
-      const success = await AuthController.refreshSession(sessionId, { headers: request.headers, request })
-      
+    if (!body || typeof body !== 'object') {
+      set.status = 400
       return {
-        success,
-        message: success ? 'Session refreshed successfully' : 'Session not found or expired'
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Session refresh failed'
-      
-      // Set 400 status for client errors
-      if (errorMessage.includes('required')) {
-        set.status = 400
-      }
-      
-      return {
-        error: errorMessage
+        error: 'Request body is required'
       }
     }
+
+    const { sessionId } = body as AuthModel.LogoutBody
+    
+    if (!sessionId || sessionId.trim() === '') {
+      set.status = 400
+      return {
+        error: 'Session ID is required'
+      }
+    }
+
+    return await Auth.refreshSession({ sessionId }, { headers: request.headers, request })
   }, {
-    body: logoutSchema,
-    response: sessionResponseSchema,
+    body: AuthModel.logoutBody,
+    response: {
+      200: AuthModel.sessionResponseSuccess,
+      400: AuthModel.errorResponse
+    },
     detail: {
       tags: ['Auth'],
       summary: 'Refresh Session',
@@ -344,29 +264,19 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
     }
   })
   .get('/sessions', async ({ session, set }: any) => {
-    try {
-      if (!session) {
-        set.status = 401
-        return {
-          error: 'No valid session found'
-        }
-      }
-
-      const activeSessions = await AuthController.getActiveSessions(session.userId)
-      
+    if (!session) {
+      set.status = 401
       return {
-        success: true,
-        message: 'Active sessions retrieved successfully',
-        activeSessions,
-        count: activeSessions.length
-      }
-    } catch (error) {
-      return {
-        error: error instanceof Error ? error.message : 'Failed to get sessions'
+        error: 'No valid session found'
       }
     }
+
+    return await Auth.getActiveSessions(session.userId)
   }, {
-    response: sessionResponseSchema,
+    response: {
+      200: AuthModel.sessionResponseSuccess,
+      401: AuthModel.errorResponse
+    },
     detail: {
       tags: ['Auth'],
       summary: 'Get Active Sessions',

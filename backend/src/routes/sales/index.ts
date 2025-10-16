@@ -1,12 +1,12 @@
 import { Elysia, t } from 'elysia'
-import { SaleController } from './controllers'
+import { SaleController } from './service'
 import {
   createSaleSchema,
   salesQuerySchema,
   saleParamsSchema,
   saleResponseSchema,
   salesListResponseSchema
-} from './schemas'
+} from './model'
 import { authMiddleware } from '../../middleware/auth'
 
 export const saleRoutes = new Elysia({ prefix: '/sales' })

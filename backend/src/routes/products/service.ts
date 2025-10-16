@@ -1,19 +1,15 @@
+// Service handle business logic, decoupled from Elysia controller
+import { Elysia } from 'elysia'
 import { prisma } from '../../index'
 
-export class ProductController {
-  static async getAllProducts(query: {
-    page?: string;
-    limit?: string;
-    search?: string;
-    category?: string;
-    sort?: string;
-    includeInactive?: string;
-  }) {
+import type { ProductModel } from './model'
+
+export abstract class Product {
+  static async getAllProducts(query: ProductModel.QuerySchema) {
     const { page = '1', limit = '10', search = '', category = '', sort = 'name', includeInactive = 'false' } = query
     const skip = (parseInt(page) - 1) * parseInt(limit)
     
     const where = {
-      // Only filter by isActive if includeInactive is false (default behavior for POS)
       ...(includeInactive === 'false' && { isActive: true }),
       ...(search && {
         OR: [
@@ -26,11 +22,8 @@ export class ProductController {
       ...(category && { categoryId: category })
     }
 
-    // Determine sort order
     let orderBy: any = { name: 'asc' }
     if (sort === 'popular') {
-      // For now, we'll sort by name since we don't have sales tracking yet
-      // In the future, this could be based on actual sales data
       orderBy = { name: 'asc' }
     } else if (sort === 'price_asc') {
       orderBy = { price: 'asc' }
@@ -77,7 +70,9 @@ export class ProductController {
     })
 
     if (!product) {
-      throw new Error('Product not found')
+      const error = new Error('Product not found')
+      ;(error as any).status = 404
+      throw error
     }
 
     return { product }
@@ -93,7 +88,9 @@ export class ProductController {
     })
 
     if (!product) {
-      throw new Error('Product not found')
+      const error = new Error('Product not found')
+      ;(error as any).status = 404
+      throw error
     }
 
     return { product }
@@ -141,20 +138,7 @@ export class ProductController {
     return { products }
   }
 
-  static async createProduct(data: {
-    name: string;
-    description?: string;
-    barcode?: string;
-    sku: string;
-    price: number;
-    costPrice: number;
-    stockQuantity: number;
-    minStockLevel: number;
-    expiryDate?: Date;
-    requiresPrescription: boolean;
-    categoryId: string;
-    supplierId?: string;
-  }) {
+  static async createProduct(data: ProductModel.CreateBody) {
     // Auto-generate barcode if not provided
     let barcode = data.barcode
     if (!barcode) {
@@ -219,20 +203,7 @@ export class ProductController {
     return checkDigit.toString()
   }
 
-  static async updateProduct(id: string, data: Partial<{
-    name: string;
-    description: string;
-    barcode: string;
-    sku: string;
-    price: number;
-    costPrice: number;
-    stockQuantity: number;
-    minStockLevel: number;
-    expiryDate: Date;
-    requiresPrescription: boolean;
-    categoryId: string;
-    supplierId: string;
-  }>) {
+  static async updateProduct(id: string, data: ProductModel.UpdateBody) {
     const product = await prisma.product.update({
       where: { id },
       data,
@@ -268,7 +239,9 @@ export class ProductController {
     })
 
     if (existingProduct && existingProduct.id !== id) {
-      throw new Error('Barcode already exists for another product')
+      const error = new Error('Validation error')
+      ;(error as any).status = 400
+      throw error
     }
 
     const product = await prisma.product.update({

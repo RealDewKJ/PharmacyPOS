@@ -1,5 +1,5 @@
 // Routes exports - Clean Architecture
-export { authRoutes } from './auth'
+export { auth } from './auth'
 export { productRoutes } from './products'
 export { categoryRoutes } from './categories'
 export { supplierRoutes } from './suppliers'
