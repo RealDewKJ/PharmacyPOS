@@ -67,7 +67,6 @@ async function main() {
     })
   ])
 
-  // Create sample products
   const products = await Promise.all([
     prisma.product.upsert({
       where: { sku: 'PARA001' },

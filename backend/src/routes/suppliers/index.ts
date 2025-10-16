@@ -5,10 +5,10 @@ import {
   supplierResponseSchema,
   suppliersListResponseSchema
 } from './schemas'
-import { authMiddleware } from '../../middleware/auth'
+import { sessionMiddleware } from '../../middleware/session'
 
 export const supplierRoutes = new Elysia({ prefix: '/suppliers' })
-  .use(authMiddleware)
+  .use(sessionMiddleware)
   .get('/', async () => {
     try {
       return await SupplierController.getAllSuppliers()

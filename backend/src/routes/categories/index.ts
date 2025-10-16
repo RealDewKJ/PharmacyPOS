@@ -6,10 +6,10 @@ import {
   categoryWithProductsResponseSchema,
   categoriesListResponseSchema
 } from './schemas'
-import { authMiddleware } from '../../middleware/auth'
+import { sessionMiddleware } from '../../middleware/session'
 
 export const categoryRoutes = new Elysia({ prefix: '/categories' })
-  .use(authMiddleware)
+  .use(sessionMiddleware)
   .get('/', async () => {
     try {
       return await CategoryController.getAllCategories()

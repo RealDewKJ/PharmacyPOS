@@ -7,17 +7,26 @@ export const authMiddleware = new Elysia()
       const authHeader = context.headers.authorization
       
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.log('Auth middleware: No valid authorization header')
         return { user: null }
       }
 
       const token = authHeader.substring(7)
       if (!token) {
+        console.log('Auth middleware: No token found')
         return { user: null }
       }
 
       const payload = await (context as any).jwt.verify(token)
       
       if (!payload) {
+        console.log('Auth middleware: JWT verification failed')
+        return { user: null }
+      }
+
+      // Check if token is expired
+      if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+        console.log('Auth middleware: Token has expired')
         return { user: null }
       }
 
@@ -33,9 +42,11 @@ export const authMiddleware = new Elysia()
       })
 
       if (!user || !user.isActive) {
+        console.log('Auth middleware: User not found or inactive')
         return { user: null }
       }
 
+      console.log('Auth middleware: User authenticated successfully:', user.email)
       return { user }
     } catch (error: any) {
       console.warn('Auth middleware error:', error.message)

@@ -14,57 +14,130 @@
           <!-- Product Search -->
           <Card class="p-6">
             <CardHeader>
-              <CardTitle>{{ t.pos.addProducts }}</CardTitle>
+              <CardTitle class="flex items-center gap-2">
+                <SearchIcon class="h-5 w-5" />
+                {{ t.pos.addProducts }}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div class="flex gap-4">
+              <!-- Search Input with Auto-focus -->
+              <div class="relative">
                 <input
+                  ref="searchInput"
                   v-model="searchQuery"
-                  :placeholder="t.pos.searchPlaceholder"
-                  class="flex-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  :placeholder="`${t.pos.searchPlaceholder} (⌘K)`"
+                  class="w-full h-12 rounded-lg border border-input bg-background px-4 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pr-12"
+                  @input="onSearchInput"
                   @keyup.enter="searchProducts"
+                  @keydown.escape="clearSearch"
+                  @keydown.down="navigateResults(1)"
+                  @keydown.up="navigateResults(-1)"
                 />
-                <Button @click="searchProducts" :disabled="searchLoading">
-                  <Loader2Icon v-if="searchLoading" class="h-4 w-4 mr-2 animate-spin" />
-                  <SearchIcon v-else class="h-4 w-4 mr-2" />
-                  {{ searchLoading ? t.pos.processing : t.pos.search }}
-                </Button>
-               
-                <Button @click="() => console.log('Current searchQuery:', searchQuery)" variant="outline">
-                  Show Value
-                </Button>
+                <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                  <Loader2Icon v-if="searchLoading" class="h-4 w-4 animate-spin text-muted-foreground" />
+                  <SearchIcon v-else class="h-4 w-4 text-muted-foreground" />
+                </div>
               </div>
-              
-              <!-- Quick Search Suggestions -->
-              <div v-if="searchQuery.length > 0 && searchResults.length === 0 && !searchLoading" class="mt-2">
-                <p class="text-sm text-muted-foreground">Try searching for: "paracetamol", "ibuprofen", "vitamin c", "amoxicillin"</p>
+
+              <!-- Search Suggestions & Recent Searches -->
+              <div v-if="showSuggestions" class="mt-3 space-y-2">
+                <!-- Recent Searches -->
+                <div v-if="recentSearches.length > 0" class="space-y-1">
+                  <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">{{ t.pos.recentSearches }}</p>
+                  <div class="flex flex-wrap gap-1">
+                    <button
+                      v-for="term in recentSearches.slice(0, 5)"
+                      :key="term"
+                      @click="selectSuggestion(term)"
+                      class="px-2 py-1 text-xs bg-muted text-muted-foreground rounded-md hover:bg-muted/80 transition-colors"
+                    >
+                      {{ term }}
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Popular Products -->
+                <div v-if="popularProducts.length > 0" class="space-y-1">
+                  <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">{{ t.pos.popularProducts }}</p>
+                  <div class="space-y-1">
+                    <button
+                      v-for="product in popularProducts.slice(0, 3)"
+                      :key="product.id"
+                      @click="addToCart(product)"
+                      class="w-full text-left p-2 rounded-md hover:bg-accent transition-colors"
+                    >
+                      <div class="flex justify-between items-center">
+                        <div>
+                          <p class="text-sm font-medium">{{ product.name }}</p>
+                          <p class="text-xs text-muted-foreground">{{ product.sku }}</p>
+                        </div>
+                        <p class="text-sm font-bold">฿{{ product.price }}</p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <!-- Search Results -->
               <div v-if="searchResults.length > 0" class="mt-4">
-                <h3 class="text-sm font-medium text-foreground mb-2">{{ t.pos.searchResults }}</h3>
-                <div class="space-y-2">
+                <div class="flex justify-between items-center mb-3">
+                  <h3 class="text-sm font-medium text-foreground">{{ t.pos.searchResults }} ({{ searchResults.length }})</h3>
+                  <button
+                    @click="clearSearch"
+                    class="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Clear
+                  </button>
+                </div>
+                <div class="space-y-2 max-h-80 overflow-y-auto">
                   <div
-                    v-for="product in searchResults"
+                    v-for="(product, index) in searchResults"
                     :key="product.id"
-                    class="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                    :class="[
+                      'flex items-center justify-between p-3 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors',
+                      selectedResultIndex === index ? 'bg-accent border-ring' : ''
+                    ]"
                     @click="addToCart(product)"
                   >
-                    <div>
+                    <div class="flex-1">
                       <p class="font-medium text-foreground">{{ product.name }}</p>
                       <p class="text-sm text-muted-foreground">{{ product.sku }} • {{ t.pos.stock }}: {{ product.stockQuantity }}</p>
+                      <p v-if="product.category" class="text-xs text-muted-foreground">{{ product.category.name }}</p>
                     </div>
                     <div class="text-right">
                       <p class="font-bold text-foreground">฿{{ product.price }}</p>
-                      <p class="text-sm text-muted-foreground">{{ product.category?.name }}</p>
+                      <p v-if="product.stockQuantity <= 5" class="text-xs text-destructive">Low Stock</p>
                     </div>
                   </div>
                 </div>
               </div>
 
               <!-- No Results Message -->
-              <div v-if="searchQuery && !searchLoading && searchResults.length === 0" class="mt-4 text-center py-4 text-muted-foreground">
-                <p>No products found for "{{ searchQuery }}"</p>
+              <div v-if="searchQuery && !searchLoading && searchResults.length === 0 && !showSuggestions" class="mt-4 text-center py-6 text-muted-foreground">
+                <SearchIcon class="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p class="text-sm">No products found for "{{ searchQuery }}"</p>
+                <p class="text-xs mt-1">Try different keywords or check spelling</p>
+              </div>
+
+              <!-- Quick Actions -->
+              <div v-if="!searchQuery && !searchResults.length" class="mt-4 space-y-2">
+                <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">{{ t.pos.quickActions }}</p>
+                <div class="grid grid-cols-2 gap-2">
+                  <button
+                    @click="loadPopularProducts"
+                    class="p-2 text-left border border-border rounded-lg hover:bg-accent transition-colors"
+                  >
+                    <p class="text-sm font-medium">{{ t.pos.popularProducts }}</p>
+                    <p class="text-xs text-muted-foreground">Most sold items</p>
+                  </button>
+                  <button
+                    @click="loadLowStockProducts"
+                    class="p-2 text-left border border-border rounded-lg hover:bg-accent transition-colors"
+                  >
+                    <p class="text-sm font-medium">{{ t.pos.lowStock }}</p>
+                    <p class="text-xs text-muted-foreground">Need restocking</p>
+                  </button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -204,7 +277,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { 
   SearchIcon, 
   ShoppingCartIcon, 
@@ -255,9 +328,22 @@ const tax = ref(0)
 const loading = ref(false)
 const searchLoading = ref(false)
 
+// New search-related state
+const searchInput = ref<HTMLInputElement>()
+const showSuggestions = ref(false)
+const recentSearches = ref<string[]>([])
+const popularProducts = ref<Product[]>([])
+const selectedResultIndex = ref(-1)
+const searchTimeout = ref<NodeJS.Timeout>()
+
 // Watch for changes in searchQuery
 watch(searchQuery, (newValue) => {
   console.log('searchQuery changed to:', newValue)
+  if (newValue.length === 0) {
+    showSuggestions.value = false
+    searchResults.value = []
+    selectedResultIndex.value = -1
+  }
 })
 
 
@@ -269,44 +355,139 @@ const grandTotal = computed(() => {
   return subtotal.value - discount.value + tax.value
 })
 
+// New search functions
+const onSearchInput = () => {
+  if (searchTimeout.value) {
+    clearTimeout(searchTimeout.value)
+  }
+  
+  if (searchQuery.value.length > 0) {
+    showSuggestions.value = true
+    searchTimeout.value = setTimeout(() => {
+      searchProducts()
+    }, 300) // Debounce search by 300ms
+  } else {
+    showSuggestions.value = false
+    searchResults.value = []
+  }
+}
+
+const selectSuggestion = (term: string) => {
+  searchQuery.value = term
+  showSuggestions.value = false
+  searchProducts()
+}
+
+const clearSearch = () => {
+  searchQuery.value = ''
+  searchResults.value = []
+  showSuggestions.value = false
+  selectedResultIndex.value = -1
+  searchInput.value?.focus()
+}
+
+const navigateResults = (direction: number) => {
+  if (searchResults.value.length === 0) return
+  
+  selectedResultIndex.value += direction
+  
+  if (selectedResultIndex.value < 0) {
+    selectedResultIndex.value = searchResults.value.length - 1
+  } else if (selectedResultIndex.value >= searchResults.value.length) {
+    selectedResultIndex.value = 0
+  }
+}
+
+const loadPopularProducts = async () => {
+  try {
+    searchLoading.value = true
+    const response = await get('/products?limit=5&sort=popular') as any
+    popularProducts.value = response.products || []
+    showSuggestions.value = true
+  } catch (error) {
+    console.error('Error loading popular products:', error)
+  } finally {
+    searchLoading.value = false
+  }
+}
+
+const loadLowStockProducts = async () => {
+  try {
+    searchLoading.value = true
+    const response = await get('/products/low-stock') as any
+    searchResults.value = response.products || []
+    showSuggestions.value = false
+  } catch (error) {
+    console.error('Error loading low stock products:', error)
+  } finally {
+    searchLoading.value = false
+  }
+}
+
+const addToRecentSearches = (term: string) => {
+  if (!term.trim()) return
+  
+  const trimmedTerm = term.trim()
+  recentSearches.value = recentSearches.value.filter(t => t !== trimmedTerm)
+  recentSearches.value.unshift(trimmedTerm)
+  recentSearches.value = recentSearches.value.slice(0, 10) // Keep only last 10 searches
+  
+  // Save to localStorage
+  localStorage.setItem('recentSearches', JSON.stringify(recentSearches.value))
+}
+
+const loadRecentSearches = () => {
+  try {
+    const saved = localStorage.getItem('recentSearches')
+    if (saved) {
+      recentSearches.value = JSON.parse(saved)
+    }
+  } catch (error) {
+    console.error('Error loading recent searches:', error)
+  }
+}
+
 const searchProducts = async () => {
   console.log('searchProducts function called!')
   console.log('searchQuery.value:', searchQuery.value)
-  console.log('searchQuery.value type:', typeof searchQuery.value)
-  console.log('searchQuery.value length:', searchQuery.value?.length)
   
   if (!searchQuery.value || !searchQuery.value.trim()) {
     console.log('Search query is empty, returning')
     return
   }
 
-  console.log('Searching for:', searchQuery.value)
+  const query = searchQuery.value.trim()
+  console.log('Searching for:', query)
   searchLoading.value = true
   searchResults.value = []
+  showSuggestions.value = false
+  selectedResultIndex.value = -1
 
   try {
     // Check if input looks like a barcode (numeric and 12-13 digits)
-    const isBarcode = /^\d{12,13}$/.test(searchQuery.value.trim())
+    const isBarcode = /^\d{12,13}$/.test(query)
     
     if (isBarcode) {
-      console.log('Searching by barcode:', searchQuery.value.trim())
+      console.log('Searching by barcode:', query)
       // Search by barcode
-      const response = await get(`/products/barcode/${searchQuery.value.trim()}`) as any
+      const response = await get(`/products/barcode/${query}`) as any
       console.log('Barcode search response:', response)
       if (response.product) {
         searchResults.value = [response.product]
         // Auto-add to cart for barcode searches
         addToCart(response.product)
+        addToRecentSearches(query)
         return
       } else {
         searchResults.value = []
       }
     } else {
-      console.log('Searching by text:', searchQuery.value)
-      // Search by name, SKU, or description
-      const response = await get(`/products?search=${encodeURIComponent(searchQuery.value)}&limit=10`) as any
+      console.log('Searching by text:', query)
+      // Search by name, SKU, or description with better parameters
+      const response = await get(`/products?search=${encodeURIComponent(query)}&limit=20&page=1`) as any
       console.log('Text search response:', response)
       searchResults.value = response.products || []
+      addToRecentSearches(query)
     }
   } catch (error: any) {
     console.error('Error searching products:', error)
@@ -337,15 +518,12 @@ const addToCart = async (product: Product) => {
     })
   }
   
-  searchResults.value = []
-  searchQuery.value = ''
+  // Clear search and focus back on input
+  clearSearch()
   
   // Focus back on search input for quick scanning
   await nextTick()
-  const searchInputElement = document.querySelector('input[placeholder*="Search products"]') as HTMLInputElement
-  if (searchInputElement) {
-    searchInputElement.focus()
-  }
+  searchInput.value?.focus()
 }
 
 const updateQuantity = (productId: string, newQuantity: number) => {
@@ -417,14 +595,41 @@ const processSale = async () => {
   }
 }
 
+// Keyboard shortcuts
+const handleKeydown = (event: KeyboardEvent) => {
+  // Ctrl/Cmd + K to focus search
+  if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+    event.preventDefault()
+    searchInput.value?.focus()
+  }
+  
+  // Escape to clear search
+  if (event.key === 'Escape') {
+    clearSearch()
+  }
+  
+  // Enter to select highlighted result
+  if (event.key === 'Enter' && selectedResultIndex.value >= 0 && searchResults.value.length > 0) {
+    event.preventDefault()
+    addToCart(searchResults.value[selectedResultIndex.value])
+  }
+}
+
 onMounted(async () => {
   fetchCustomers()
+  loadRecentSearches()
+  loadPopularProducts()
+  
+  // Add keyboard event listeners
+  document.addEventListener('keydown', handleKeydown)
   
   // Focus on search input when page loads
   await nextTick()
-  const searchInputElement = document.querySelector('input[placeholder*="Search products"]') as HTMLInputElement
-  if (searchInputElement) {
-    searchInputElement.focus()
-  }
+  searchInput.value?.focus()
+})
+
+onUnmounted(() => {
+  // Clean up event listeners
+  document.removeEventListener('keydown', handleKeydown)
 })
 </script>

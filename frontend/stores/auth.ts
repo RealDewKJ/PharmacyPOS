@@ -15,6 +15,7 @@ interface AuthState {
   token: string | null
   isAuthenticated: boolean
   loading: boolean
+  isCheckingAuth: boolean
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -22,7 +23,8 @@ export const useAuthStore = defineStore('auth', {
     user: null,
     token: null,
     isAuthenticated: false,
-    loading: false
+    loading: false,
+    isCheckingAuth: false
   }),
 
   getters: {
@@ -130,10 +132,18 @@ export const useAuthStore = defineStore('auth', {
 
     async checkAuth() {
       if (process.client) {
+        // Prevent multiple simultaneous auth checks
+        if (this.isCheckingAuth) {
+          console.log('Auth store: Auth check already in progress, skipping')
+          return
+        }
+
         const token = localStorage.getItem('token')
         const userStr = localStorage.getItem('user')
 
+
         if (token && userStr) {
+          this.isCheckingAuth = true
           try {
             this.token = token
             this.user = JSON.parse(userStr)
@@ -141,7 +151,6 @@ export const useAuthStore = defineStore('auth', {
 
             // Verify token with backend using Eden API
             const edenApi = useEdenApi(this.token || undefined)
-            console.log('Checking auth with Eden API')
             
             const response = await edenApi.auth.getProfile()
             
@@ -156,8 +165,8 @@ export const useAuthStore = defineStore('auth', {
             }
           } catch (error: any) {
             // Token is invalid, clear everything
-            console.warn('Token validation failed:', error)
-            console.warn('Error details:', {
+            console.warn('Auth store: Token validation failed:', error)
+            console.warn('Auth store: Error details:', {
               message: error.message,
               response: error.response,
               status: error.status
@@ -165,10 +174,12 @@ export const useAuthStore = defineStore('auth', {
             
             // If it's a 401, the token is definitely invalid
             if (error.status === 401) {
-              console.warn('Received 401 - token is invalid, logging out')
+              console.warn('Auth store: Received 401 - token is invalid, logging out')
             }
             
             this.logout()
+          } finally {
+            this.isCheckingAuth = false
           }
         } else {
           // No token or user data, ensure we're logged out

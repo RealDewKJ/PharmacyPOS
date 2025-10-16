@@ -17,10 +17,8 @@ import {
   securityRoutes
 } from './routes'
 
-// Initialize Prisma
 export const prisma = new PrismaClient()
 
-// Application initialization
 console.log('🚀 Starting Pharmacy POS API...')
 
 const app = new Elysia()
@@ -55,8 +53,7 @@ const app = new Elysia()
   .use(dashboardRoutes)
   .use(backupRoutes)
   .use(securityRoutes)
-  .onError(({ code, error, set }) => {
-    console.error(`Error ${code}:`, error)
+  .onError(({ code, error, set }: { code: string; error: any; set: any }) => {
     
     if (code === 'NOT_FOUND') {
       set.status = 404
@@ -68,7 +65,6 @@ const app = new Elysia()
       return { message: 'Validation error', details: error }
     }
     
-    // Handle authentication errors
     if (error.message?.includes('Authorization') || 
         error.message?.includes('JWT') || 
         error.message?.includes('token') ||

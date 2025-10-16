@@ -145,11 +145,21 @@
             </div>
           </div>
           
-          <div class="flex items-center gap-4">
-            <label class="flex items-center">
-              <input v-model="formData.requiresPrescription" type="checkbox" class="mr-2" />
-              <span class="text-sm text-foreground">{{ t.products.requiresPrescription }}</span>
-            </label>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-4">
+              <label class="flex items-center">
+                <input v-model="formData.requiresPrescription" type="checkbox" class="mr-2" />
+                <span class="text-sm text-foreground">{{ t.products.requiresPrescription }}</span>
+              </label>
+            </div>
+            
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-foreground">{{ t.products.status }}</span>
+              <Switch v-model="formData.isActive" />
+              <span class="text-sm text-muted-foreground">
+                {{ formData.isActive ? t.products.active : t.products.inactive }}
+              </span>
+            </div>
           </div>
           
           <div class="flex justify-end gap-2">
@@ -178,6 +188,7 @@ import CardContent from './ui/card-content.vue'
 import CardTitle from './ui/card-title.vue'
 import Input from './ui/input.vue'
 import Button from './ui/button.vue'
+import Switch from './ui/switch.vue'
 import { useLanguage } from '../composables/useLanguage'
 
 const { t } = useLanguage()
@@ -244,6 +255,7 @@ const formData = ref({
   minStockLevel: 10,
   barcode: null as string | null,
   requiresPrescription: false,
+  isActive: true,
   categoryId: '',
   supplierId: ''
 })
@@ -260,6 +272,7 @@ const resetForm = () => {
     minStockLevel: 10,
     barcode: null,
     requiresPrescription: false,
+    isActive: true,
     categoryId: '',
     supplierId: ''
   }
