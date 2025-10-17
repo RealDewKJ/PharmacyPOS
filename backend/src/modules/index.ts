@@ -1,7 +1,6 @@
-// Routes exports - Clean Architecture
 export { auth } from './auth'
-export { productRoutes } from './products'
-export { categoryRoutes } from './categories'
+export { products } from './products'
+export { categories } from './categories'
 export { supplierRoutes } from './suppliers'
 export { customerRoutes } from './customers'
 export { saleRoutes } from './sales'
@@ -12,7 +11,6 @@ export { dashboardRoutes } from './dashboard'
 export { backupRoutes } from './backup'
 export { securityRoutes } from './security'
 
-// Route groups for better organization
 export const publicRoutes = [
   'auth',
   'products',

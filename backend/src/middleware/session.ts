@@ -1,6 +1,6 @@
 import { Elysia } from 'elysia'
 import { jwt } from '@elysiajs/jwt'
-import { Auth } from '../routes/auth/service'
+import { Auth } from '../modules/auth/service'
 import { SecurityLogger } from '../utils/securityLogger'
 
 export interface SessionData {

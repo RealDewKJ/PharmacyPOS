@@ -1,8 +1,6 @@
-// Model define the data structure and validation for the request and response
 import { t } from 'elysia'
 
 export namespace ProductModel {
-  // Base product entity schema
   const baseProductEntity = t.Object({
     id: t.String(),
     name: t.String(),
@@ -39,7 +37,6 @@ export namespace ProductModel {
     updatedAt: t.Date()
   })
 
-  // Request schemas
   export const querySchema = t.Object({
     page: t.Optional(t.String()),
     limit: t.Optional(t.String()),
@@ -88,7 +85,6 @@ export namespace ProductModel {
   })
   export type ExpiringProductsQuery = typeof expiringProductsQuery.static
 
-  // Response schemas
   export const productWithRelations = t.Object({
     id: t.String(),
     name: t.String(),
@@ -164,7 +160,6 @@ export namespace ProductModel {
   ])
   export type ExpiringProductsResponse = typeof expiringProductsResponse.static
 
-  // Error responses
   export const notFound = t.Literal('Product not found')
   export type NotFound = typeof notFound.static
 

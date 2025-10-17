@@ -1,11 +1,10 @@
-// Controller handle HTTP related eg. routing, request validation
 import { Elysia, t } from 'elysia'
 
 import { Product } from './service'
 import { ProductModel } from './model'
 import { sessionMiddleware } from '../../middleware/session'
 
-export const productRoutes = new Elysia({ prefix: '/products' })
+export const products = new Elysia({ prefix: '/products' })
   .use(sessionMiddleware)
   .get(
     '/',

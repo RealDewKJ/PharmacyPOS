@@ -4,8 +4,8 @@ import { swaggerConfig, corsConfig, jwtConfig, config } from './config'
 
 import { 
   auth, 
-  productRoutes, 
-  categoryRoutes,
+  products, 
+  categories,
   supplierRoutes,
   customerRoutes,
   saleRoutes,
@@ -15,7 +15,7 @@ import {
   dashboardRoutes,
   backupRoutes,
   securityRoutes
-} from './routes'
+} from './modules'
 
 export const prisma = new PrismaClient()
 
@@ -42,8 +42,8 @@ const app = new Elysia()
     uptime: process.uptime()
   }))
   .use(auth)
-  .use(productRoutes)
-  .use(categoryRoutes)
+  .use(products)
+  .use(categories)
   .use(supplierRoutes)
   .use(customerRoutes)
   .use(saleRoutes)

@@ -1,5 +1,3 @@
-// Service handle business logic, decoupled from Elysia controller
-import { Elysia } from 'elysia'
 import { prisma } from '../../index'
 
 import type { ProductModel } from './model'
@@ -139,7 +137,6 @@ export abstract class Product {
   }
 
   static async createProduct(data: ProductModel.CreateBody) {
-    // Auto-generate barcode if not provided
     let barcode = data.barcode
     if (!barcode) {
       barcode = await this.generateUniqueBarcodeInternal()
@@ -164,10 +161,8 @@ export abstract class Product {
     let isUnique = false
     
     while (!isUnique) {
-      // Generate 13-digit barcode (EAN-13 format)
       barcode = this.generateBarcode()
       
-      // Check if barcode already exists
       const existingProduct = await prisma.product.findUnique({
         where: { barcode }
       })
@@ -181,13 +176,10 @@ export abstract class Product {
   }
 
   private static generateBarcode(): string {
-    // Generate a 13-digit barcode starting with 8 (internal use)
-    // Format: 8 + 11 random digits + check digit
     const prefix = '8'
     const randomDigits = Math.random().toString().slice(2, 13) // 11 digits
     const barcodeWithoutCheck = prefix + randomDigits
     
-    // Calculate check digit (simplified EAN-13 algorithm)
     const checkDigit = this.calculateCheckDigit(barcodeWithoutCheck)
     
     return barcodeWithoutCheck + checkDigit
@@ -225,15 +217,12 @@ export abstract class Product {
     return { message: 'Product deleted successfully' }
   }
 
-  // Generate barcode for manual assignment
   static async generateUniqueBarcode() {
     const barcode = await this.generateUniqueBarcodeInternal()
     return { barcode }
   }
 
-  // Update barcode for existing product
   static async updateProductBarcode(id: string, barcode: string) {
-    // Check if barcode already exists
     const existingProduct = await prisma.product.findUnique({
       where: { barcode }
     })
@@ -257,7 +246,6 @@ export abstract class Product {
     return { product }
   }
 
-  // Get products without barcode
   static async getProductsWithoutBarcode() {
     const products = await prisma.product.findMany({
       where: {

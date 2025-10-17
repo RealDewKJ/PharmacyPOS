@@ -16,14 +16,11 @@ const USER_SESSIONS_KEY_PREFIX = 'user_sessions:'
 
 export abstract class Auth {
   static async login({ email, password }: AuthModel.LoginBody, context?: any): Promise<AuthModel.LoginSuccess> {
-    // Extract security context
     const securityContext = context ? extractSecurityContext(context) : { ip: 'unknown', userAgent: undefined }
     const { ip, userAgent } = securityContext
 
-    // Log login attempt
     SecurityLogger.logLoginAttempt(email, ip, false, userAgent)
 
-    // Check if account is locked due to brute force attempts
     const isAccountLocked = await BruteForceProtection.checkAccountLock(email, 'login')
     if (isAccountLocked) {
       SecurityLogger.logAccountLocked(email, ip, 'Account locked due to brute force attempts')
@@ -37,7 +34,6 @@ export abstract class Auth {
     })
 
     if (!user) {
-      // Record failed attempt for non-existent user
       await BruteForceProtection.recordFailedAttempt(email, 'login')
       SecurityLogger.logFailedLogin(email, ip, 'User not found', userAgent)
       await SuspiciousActivityDetector.checkBruteForcePattern(ip, email)
@@ -48,7 +44,6 @@ export abstract class Auth {
     }
 
     if (!user.isActive) {
-      // Record failed attempt for inactive user
       await BruteForceProtection.recordFailedAttempt(email, 'login')
       SecurityLogger.logFailedLogin(email, ip, 'Account inactive', userAgent)
       await SuspiciousActivityDetector.checkBruteForcePattern(ip, email)
@@ -60,7 +55,6 @@ export abstract class Auth {
 
     const isValidPassword = await bcrypt.compare(password, user.password)
     if (!isValidPassword) {
-      // Record failed attempt for invalid password
       await BruteForceProtection.recordFailedAttempt(email, 'login')
       SecurityLogger.logFailedLogin(email, ip, 'Invalid password', userAgent)
       await SuspiciousActivityDetector.checkBruteForcePattern(ip, email)
@@ -70,14 +64,11 @@ export abstract class Auth {
       throw error
     }
 
-    // Generate session and store in Redis
     const sessionId = await this.createSession(user.id, user.email, user.role, ip)
 
-    // Log successful login
     SecurityLogger.logLoginAttempt(email, ip, true, userAgent)
     SecurityLogger.logSessionCreated(user.id, sessionId, ip)
     
-    // Check for suspicious activity patterns
     await SuspiciousActivityDetector.checkSuspiciousActivity(
       user.id,
       'successful_login',
@@ -86,8 +77,8 @@ export abstract class Auth {
     )
 
     return {
-      token: '', // Will be set by the controller
-      refreshToken: '', // Will be set by the controller
+      token: '', 
+      refreshToken: '', 
       user: {
         id: user.id,
         email: user.email,
@@ -101,7 +92,6 @@ export abstract class Auth {
   }
 
   static async register({ email, password, name, role = 'CASHIER' }: AuthModel.RegisterBody, context?: any): Promise<AuthModel.LoginSuccess> {
-    // Extract security context
     const securityContext = context ? extractSecurityContext(context) : { ip: 'unknown', userAgent: undefined }
     const { ip, userAgent } = securityContext
 
@@ -127,16 +117,14 @@ export abstract class Auth {
       }
     })
 
-    // Generate session and store in Redis
     const sessionId = await this.createSession(user.id, user.email, user.role, ip)
 
-    // Log successful registration
     SecurityLogger.logUserRegistration(email, ip, userAgent)
     SecurityLogger.logSessionCreated(user.id, sessionId, ip)
 
     return {
-      token: '', // Will be set by the controller
-      refreshToken: '', // Will be set by the controller
+      token: '', 
+      refreshToken: '', 
       user: {
         id: user.id,
         email: user.email,
@@ -170,11 +158,9 @@ export abstract class Auth {
     }
   }
 
-  // Helper method to create session
   private static async createSession(userId: string, email: string, role: string, ip: string): Promise<string> {
     const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`
 
-    // Store session in Redis
     const sessionData = {
       userId,
       email,
@@ -184,14 +170,12 @@ export abstract class Auth {
       expiresAt: new Date(Date.now() + SESSION_EXPIRE_SECONDS * 1000).toISOString()
     }
 
-    // Store session data
     await redisService.set(
       `${SESSION_KEY_PREFIX}${sessionId}`,
       JSON.stringify(sessionData),
       SESSION_EXPIRE_SECONDS
     )
 
-    // Add session to user's active sessions
     const userSessionsKey = `${USER_SESSIONS_KEY_PREFIX}${userId}`
     const existingSessions = await redisService.get(userSessionsKey)
     const sessions = existingSessions ? JSON.parse(existingSessions) : []
@@ -207,11 +191,9 @@ export abstract class Auth {
   }
 
   static async logout({ sessionId }: AuthModel.LogoutBody, context?: any): Promise<AuthModel.SessionResponseSuccess> {
-    // Extract security context
     const securityContext = context ? extractSecurityContext(context) : { ip: 'unknown', userAgent: undefined }
     const { ip } = securityContext
 
-    // Get session data to find user ID
     const sessionData = await redisService.get(`${SESSION_KEY_PREFIX}${sessionId}`)
     if (!sessionData) {
       return {
@@ -223,13 +205,10 @@ export abstract class Auth {
     const session = JSON.parse(sessionData)
     const userId = session.userId
 
-    // Log session destruction
     SecurityLogger.logSessionDestroyed(userId, sessionId, ip)
 
-    // Remove session from Redis
     await redisService.del(`${SESSION_KEY_PREFIX}${sessionId}`)
 
-    // Remove session from user's active sessions list
     const userSessionsKey = `${USER_SESSIONS_KEY_PREFIX}${userId}`
     const existingSessions = await redisService.get(userSessionsKey)
     if (existingSessions) {
@@ -264,7 +243,6 @@ export abstract class Auth {
     const sessions = JSON.parse(existingSessions)
     let deletedCount = 0
 
-    // Delete each session
     for (const sessionId of sessions) {
       const deleted = await redisService.del(`${SESSION_KEY_PREFIX}${sessionId}`)
       if (deleted) {
@@ -272,7 +250,6 @@ export abstract class Auth {
       }
     }
 
-    // Clear user's sessions list
     await redisService.del(userSessionsKey)
 
     return {
@@ -283,7 +260,6 @@ export abstract class Auth {
   }
 
   static async refreshSession({ sessionId }: AuthModel.LogoutBody, context?: any): Promise<AuthModel.SessionResponseSuccess> {
-    // Extract security context
     const securityContext = context ? extractSecurityContext(context) : { ip: 'unknown', userAgent: undefined }
     const { ip } = securityContext
 
@@ -299,20 +275,16 @@ export abstract class Auth {
 
     const session = JSON.parse(sessionData)
     
-    // Update session with new expiration time
     const updatedSession = {
       ...session,
       expiresAt: new Date(Date.now() + SESSION_EXPIRE_SECONDS * 1000).toISOString()
     }
 
-    // Refresh session in Redis
     await redisService.set(sessionKey, JSON.stringify(updatedSession), SESSION_EXPIRE_SECONDS)
 
-    // Also refresh user sessions list
     const userSessionsKey = `${USER_SESSIONS_KEY_PREFIX}${session.userId}`
     await redisService.set(userSessionsKey, await redisService.get(userSessionsKey) || '[]', SESSION_EXPIRE_SECONDS)
 
-    // Log session refresh
     SecurityLogger.logSessionRefresh(session.userId, sessionId, ip)
 
     return {
@@ -349,7 +321,6 @@ export abstract class Auth {
       }
     }
 
-    // Update user sessions list if some sessions were removed
     if (activeSessions.length !== sessionIds.length) {
       if (activeSessions.length > 0) {
         await redisService.set(userSessionsKey, JSON.stringify(activeSessions), SESSION_EXPIRE_SECONDS)
@@ -373,14 +344,12 @@ export abstract class Auth {
 
     const sessionData = await redisService.get(`${SESSION_KEY_PREFIX}${sessionId}`)
     if (!sessionData) {
-      return null // Session not found
+      return null 
     }
 
     const session = JSON.parse(sessionData)
     
-    // Check if session is expired
     if (new Date(session.expiresAt) <= new Date()) {
-      // Remove expired session
       await redisService.del(`${SESSION_KEY_PREFIX}${sessionId}`)
       return null
     }

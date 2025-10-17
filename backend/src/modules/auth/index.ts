@@ -14,13 +14,11 @@ export const auth = new Elysia({ prefix: '/auth' })
       return
     }
     
-    // Handle custom status codes from our services
     if (error.status) {
       set.status = error.status
       return { error: error.message }
     }
     
-    // Handle specific error messages
     if (error.message?.includes('Invalid email or password') ||
         error.message?.includes('Account is inactive') ||
         error.message?.includes('User not found')) {

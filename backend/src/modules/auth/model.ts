@@ -1,7 +1,6 @@
 import { t } from 'elysia'
 
 export namespace AuthModel {
-	// User role enum
 	export const userRole = t.Union([
 		t.Literal('ADMIN'),
 		t.Literal('PHARMACIST'),
@@ -9,7 +8,6 @@ export namespace AuthModel {
 	])
 	export type UserRole = typeof userRole.static
 
-	// User object schema
 	export const user = t.Object({
 		id: t.String(),
 		email: t.String(),
@@ -20,14 +18,12 @@ export namespace AuthModel {
 	})
 	export type User = typeof user.static
 
-	// Login request DTO
 	export const loginBody = t.Object({
 		email: t.String({ format: 'email' }),
 		password: t.String({ minLength: 6 })
 	})
 	export type LoginBody = typeof loginBody.static
 
-	// Register request DTO
 	export const registerBody = t.Object({
 		email: t.String({ format: 'email' }),
 		password: t.String({ minLength: 6 }),
@@ -36,13 +32,11 @@ export namespace AuthModel {
 	})
 	export type RegisterBody = typeof registerBody.static
 
-	// Logout request DTO
 	export const logoutBody = t.Object({
 		sessionId: t.String()
 	})
 	export type LogoutBody = typeof logoutBody.static
 
-	// Success response schemas
 	export const loginSuccess = t.Object({
 		token: t.String(),
 		refreshToken: t.String(),
@@ -65,13 +59,11 @@ export namespace AuthModel {
 	})
 	export type SessionResponseSuccess = typeof sessionResponseSuccess.static
 
-	// Error response schema
 	export const errorResponse = t.Object({
 		error: t.String()
 	})
 	export type ErrorResponse = typeof errorResponse.static
 
-	// Union response schemas
 	export const loginResponse = t.Union([loginSuccess, errorResponse])
 	export type LoginResponse = typeof loginResponse.static
 
@@ -81,7 +73,6 @@ export namespace AuthModel {
 	export const sessionResponse = t.Union([sessionResponseSuccess, errorResponse])
 	export type SessionResponse = typeof sessionResponse.static
 
-	// Common error messages
 	export const invalidCredentials = t.Literal('Invalid email or password')
 	export type InvalidCredentials = typeof invalidCredentials.static
 

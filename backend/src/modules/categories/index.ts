@@ -8,7 +8,7 @@ import {
 } from './model'
 import { sessionMiddleware } from '../../middleware/session'
 
-export const categoryRoutes = new Elysia({ prefix: '/categories' })
+export const categories = new Elysia({ prefix: '/categories' })
   .use(sessionMiddleware)
   .get('/', async () => {
     try {

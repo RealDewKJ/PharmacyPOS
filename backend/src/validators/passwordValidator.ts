@@ -13,7 +13,6 @@ export class PasswordValidator {
       errors.push("Password must not exceed 128 characters");
     }
 
-    // Check against common passwords
     const commonPasswords = ["password", "123456", "admin", "pharmacy123"];
     if (commonPasswords.includes(password.toLowerCase())) {
       errors.push("Password is too common");
@@ -30,7 +29,6 @@ export class PasswordValidator {
   }
 
   static async checkBreach(password: string): Promise<boolean> {
-    // Implement HaveIBeenPwned API check
     const hash = crypto
       .createHash("sha1")
       .update(password)
