@@ -14,38 +14,86 @@ export const auth = new Elysia({ prefix: '/auth' })
       return
     }
     
+    const timestamp = new Date().toISOString()
+    
     if (error.status) {
       set.status = error.status
-      return { error: error.message }
+      return { 
+        success: false as const,
+        error: {
+          message: error.message,
+          code: error.errorCode || 'UNKNOWN_ERROR',
+          statusCode: error.status,
+          timestamp
+        }
+      }
     }
     
     if (error.message?.includes('Invalid email or password') ||
         error.message?.includes('Account is inactive') ||
         error.message?.includes('User not found')) {
       set.status = 401
-      return { error: error.message }
+      return { 
+        success: false as const,
+        error: {
+          message: error.message,
+          code: 'AUTH_ERROR',
+          statusCode: 401,
+          timestamp
+        }
+      }
     }
     
     if (error.message?.includes('locked') || error.message?.includes('too many')) {
       set.status = 429
-      return { error: error.message }
+      return { 
+        success: false as const,
+        error: {
+          message: error.message,
+          code: 'RATE_LIMIT_EXCEEDED',
+          statusCode: 429,
+          timestamp
+        }
+      }
     }
     
     if (error.message?.includes('already exists')) {
       set.status = 409
-      return { error: error.message }
+      return { 
+        success: false as const,
+        error: {
+          message: error.message,
+          code: 'RESOURCE_ALREADY_EXISTS',
+          statusCode: 409,
+          timestamp
+        }
+      }
     }
     
     console.error('Auth route error:', error)
     set.status = 500
-    return { error: 'Internal server error' }
+    return { 
+      success: false as const,
+      error: {
+        message: 'Internal server error',
+        code: 'INTERNAL_SERVER_ERROR',
+        statusCode: 500,
+        timestamp
+      }
+    }
   })
   .post('/login', async ({ body, jwt, set, request }: any) => {
     const rateLimitCheck = await authRateLimit(request);
     if (!rateLimitCheck.allowed) {
       set.status = 429;
       return {
-        error: rateLimitCheck.message || "Too many login attempts. Please try again in 15 minutes."
+        success: false as const,
+        error: {
+          message: rateLimitCheck.message || "Too many login attempts. Please try again in 15 minutes.",
+          code: 'RATE_LIMIT_EXCEEDED',
+          statusCode: 429,
+          timestamp: new Date().toISOString()
+        }
       };
     }
     
@@ -53,26 +101,32 @@ export const auth = new Elysia({ prefix: '/auth' })
     console.log('Login request:', { email, passwordLength: password.length })
     const result = await Auth.login({ email, password }, { headers: request.headers, request })
     
+    // Check if result is an error response
+    if (!result.success) {
+      return result
+    }
+    
     const { accessToken, refreshToken } = await TokenService.generateTokenPair(
       jwt,
-      result.user.id,
-      result.user.email,
-      result.user.role
+      result.data.user.id,
+      result.data.user.email,
+      result.data.user.role
     )
 
     return {
-      token: accessToken,
-      refreshToken,
-      user: result.user,
-      sessionId: result.sessionId
+      success: true as const,
+      data: {
+        token: accessToken,
+        refreshToken,
+        user: result.data.user,
+        sessionId: result.data.sessionId
+      },
+      message: 'Login successful',
+      timestamp: new Date().toISOString()
     }
   }, {
     body: AuthModel.loginBody,
-    response: {
-      200: AuthModel.loginSuccess,
-      401: AuthModel.errorResponse,
-      429: AuthModel.errorResponse
-    },
+    response: AuthModel.loginResponse,
     detail: {
       tags: ['Auth'],
       summary: 'User Login',
@@ -84,26 +138,32 @@ export const auth = new Elysia({ prefix: '/auth' })
     
     const result = await Auth.register({ email, password, name, role }, { headers: request.headers, request })
     
+    // Check if result is an error response
+    if (!result.success) {
+      return result
+    }
+    
     const { accessToken, refreshToken } = await TokenService.generateTokenPair(
       jwt,
-      result.user.id,
-      result.user.email,
-      result.user.role
+      result.data.user.id,
+      result.data.user.email,
+      result.data.user.role
     )
 
     return {
-      token: accessToken,
-      refreshToken,
-      user: result.user,
-      sessionId: result.sessionId
+      success: true as const,
+      data: {
+        token: accessToken,
+        refreshToken,
+        user: result.data.user,
+        sessionId: result.data.sessionId
+      },
+      message: 'Registration successful',
+      timestamp: new Date().toISOString()
     }
   }, {
     body: AuthModel.registerBody,
-    response: {
-      200: AuthModel.loginSuccess,
-      409: AuthModel.errorResponse,
-      400: AuthModel.errorResponse
-    },
+    response: AuthModel.loginResponse,
     detail: {
       tags: ['Auth'],
       summary: 'User Registration',
@@ -114,22 +174,36 @@ export const auth = new Elysia({ prefix: '/auth' })
     if (!session || !session.userId) {
       set.status = 401
       return {
-        error: 'No valid session found'
+        success: false as const,
+        error: {
+          message: 'No valid session found',
+          code: 'UNAUTHORIZED',
+          statusCode: 401,
+          timestamp: new Date().toISOString()
+        }
       }
     }
     
-    const user = await Auth.getProfile(session.userId)
-    return { 
-      user: {
-        ...user,
-        role: user.role as AuthModel.UserRole
-      }
+    const result = await Auth.getProfile(session.userId)
+    
+    // Check if result is an error response
+    if (!result.success) {
+      return result
+    }
+    
+    return {
+      success: true as const,
+      data: {
+        user: {
+          ...result.data.user,
+          role: result.data.user.role as AuthModel.UserRole
+        }
+      },
+      message: 'Profile retrieved successfully',
+      timestamp: new Date().toISOString()
     }
   }, {
-    response: {
-      200: AuthModel.userProfileSuccess,
-      401: AuthModel.errorResponse
-    },
+    response: AuthModel.userProfileResponse,
     detail: {
       tags: ['Auth'],
       summary: 'Get User Profile',
@@ -143,7 +217,13 @@ export const auth = new Elysia({ prefix: '/auth' })
     if (!refreshToken) {
       set.status = 400
       return {
-        error: 'Refresh token is required'
+        success: false as const,
+        error: {
+          message: 'Refresh token is required',
+          code: 'REFRESH_TOKEN_REQUIRED',
+          statusCode: 400,
+          timestamp: new Date().toISOString()
+        }
       }
     }
 
@@ -152,26 +232,47 @@ export const auth = new Elysia({ prefix: '/auth' })
     if (!newAccessToken) {
       set.status = 401
       return {
-        error: 'Invalid or expired refresh token'
+        success: false as const,
+        error: {
+          message: 'Invalid or expired refresh token',
+          code: 'INVALID_REFRESH_TOKEN',
+          statusCode: 401,
+          timestamp: new Date().toISOString()
+        }
       }
     }
 
     return {
-      token: newAccessToken,
-      message: 'Access token refreshed successfully'
+      success: true as const,
+      data: {
+        token: newAccessToken
+      },
+      message: 'Access token refreshed successfully',
+      timestamp: new Date().toISOString()
     }
   }, {
     body: t.Object({
       refreshToken: t.String()
     }),
-    response: {
-      200: t.Object({
-        token: t.String(),
-        message: t.String()
+    response: t.Union([
+      t.Object({
+        success: t.Literal(true),
+        data: t.Object({
+          token: t.String()
+        }),
+        message: t.String(),
+        timestamp: t.String()
       }),
-      400: AuthModel.errorResponse,
-      401: AuthModel.errorResponse
-    },
+      t.Object({
+        success: t.Literal(false),
+        error: t.Object({
+          message: t.String(),
+          code: t.String(),
+          statusCode: t.Number(),
+          timestamp: t.String()
+        })
+      })
+    ]),
     detail: {
       tags: ['Auth'],
       summary: 'Refresh Access Token',
@@ -182,7 +283,13 @@ export const auth = new Elysia({ prefix: '/auth' })
     if (!body || typeof body !== 'object') {
       set.status = 400
       return {
-        error: 'Request body is required'
+        success: false as const,
+        error: {
+          message: 'Request body is required',
+          code: 'REQUEST_BODY_REQUIRED',
+          statusCode: 400,
+          timestamp: new Date().toISOString()
+        }
       }
     }
 
@@ -191,7 +298,13 @@ export const auth = new Elysia({ prefix: '/auth' })
     if (!sessionId || sessionId.trim() === '') {
       set.status = 400
       return {
-        error: 'Session ID is required'
+        success: false as const,
+        error: {
+          message: 'Session ID is required',
+          code: 'SESSION_ID_REQUIRED',
+          statusCode: 400,
+          timestamp: new Date().toISOString()
+        }
       }
     }
 
@@ -200,10 +313,7 @@ export const auth = new Elysia({ prefix: '/auth' })
     return result
   }, {
     body: AuthModel.logoutBody,
-    response: {
-      200: AuthModel.sessionResponseSuccess,
-      400: AuthModel.errorResponse
-    },
+    response: AuthModel.sessionResponse,
     detail: {
       tags: ['Auth'],
       summary: 'User Logout',
@@ -214,16 +324,19 @@ export const auth = new Elysia({ prefix: '/auth' })
     if (!session) {
       set.status = 401
       return {
-        error: 'No valid session found'
+        success: false as const,
+        error: {
+          message: 'No valid session found',
+          code: 'UNAUTHORIZED',
+          statusCode: 401,
+          timestamp: new Date().toISOString()
+        }
       }
     }
 
     return await Auth.logoutAllSessions(session.userId)
   }, {
-    response: {
-      200: AuthModel.sessionResponseSuccess,
-      401: AuthModel.errorResponse
-    },
+    response: AuthModel.sessionResponse,
     detail: {
       tags: ['Auth'],
       summary: 'Logout All Sessions',
@@ -235,7 +348,13 @@ export const auth = new Elysia({ prefix: '/auth' })
     if (!body || typeof body !== 'object') {
       set.status = 400
       return {
-        error: 'Request body is required'
+        success: false as const,
+        error: {
+          message: 'Request body is required',
+          code: 'REQUEST_BODY_REQUIRED',
+          statusCode: 400,
+          timestamp: new Date().toISOString()
+        }
       }
     }
 
@@ -244,17 +363,20 @@ export const auth = new Elysia({ prefix: '/auth' })
     if (!sessionId || sessionId.trim() === '') {
       set.status = 400
       return {
-        error: 'Session ID is required'
+        success: false as const,
+        error: {
+          message: 'Session ID is required',
+          code: 'SESSION_ID_REQUIRED',
+          statusCode: 400,
+          timestamp: new Date().toISOString()
+        }
       }
     }
 
     return await Auth.refreshSession({ sessionId }, { headers: request.headers, request })
   }, {
     body: AuthModel.logoutBody,
-    response: {
-      200: AuthModel.sessionResponseSuccess,
-      400: AuthModel.errorResponse
-    },
+    response: AuthModel.sessionResponse,
     detail: {
       tags: ['Auth'],
       summary: 'Refresh Session',
@@ -265,16 +387,19 @@ export const auth = new Elysia({ prefix: '/auth' })
     if (!session) {
       set.status = 401
       return {
-        error: 'No valid session found'
+        success: false as const,
+        error: {
+          message: 'No valid session found',
+          code: 'UNAUTHORIZED',
+          statusCode: 401,
+          timestamp: new Date().toISOString()
+        }
       }
     }
 
     return await Auth.getActiveSessions(session.userId)
   }, {
-    response: {
-      200: AuthModel.sessionResponseSuccess,
-      401: AuthModel.errorResponse
-    },
+    response: AuthModel.sessionResponse,
     detail: {
       tags: ['Auth'],
       summary: 'Get Active Sessions',

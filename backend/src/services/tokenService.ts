@@ -53,16 +53,55 @@ export class TokenService {
         return null;
       }
 
+      // ตรวจสอบว่า refresh token ยังไม่ถูก revoke
+      if (decoded.jti) {
+        const isRevoked = await this.isTokenRevoked(decoded.jti);
+        if (isRevoked) {
+          return null;
+        }
+      }
+
+      // ตรวจสอบว่า refresh token ถูกต้อง
+      if (decoded.type !== "refresh") {
+        return null;
+      }
+
+      if (decoded.iss !== "pharmacy-pos-api" || decoded.aud !== "pharmacy-pos-client") {
+        return null;
+      }
+
+      // ดึงข้อมูล user จาก database
+      const { PrismaClient } = await import('@prisma/client');
+      const prisma = new PrismaClient();
+      
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.sub },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          isActive: true
+        }
+      });
+
+      await prisma.$disconnect();
+
+      if (!user || !user.isActive) {
+        return null;
+      }
+
       return await jwtInstance.sign({
-        sub: decoded.sub,
-        email: decoded.email,
-        role: decoded.role,
+        sub: user.id,
+        email: user.email,
+        role: user.role,
         type: "access",
         jti: crypto.randomUUID(),
         iss: "pharmacy-pos-api",
         aud: "pharmacy-pos-client",
       }, { expiresIn: "15m" });
-    } catch {
+    } catch (error) {
+      console.error('Error refreshing access token:', error);
       return null;
     }
   }

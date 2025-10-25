@@ -7,7 +7,7 @@ import {
   products, 
   categories,
   supplierRoutes,
-  customerRoutes,
+  customers,
   saleRoutes,
   purchaseRoutes,
   prescriptionRoutes,
@@ -45,7 +45,7 @@ const app = new Elysia()
   .use(products)
   .use(categories)
   .use(supplierRoutes)
-  .use(customerRoutes)
+  .use(customers)
   .use(saleRoutes)
   .use(purchaseRoutes)
   .use(prescriptionRoutes)
