@@ -10,6 +10,7 @@ export { userRoutes } from './users'
 export { dashboardRoutes } from './dashboard'
 export { backupRoutes } from './backup'
 export { securityRoutes } from './security'
+export { posSessionRoutes } from './pos-sessions'
 
 export const publicRoutes = [
   'auth',
@@ -26,7 +27,8 @@ export const protectedRoutes = [
   'users',
   'dashboard',
   'backup',
-  'security'
+  'security',
+  'pos-sessions'
 ] as const
 
 export type PublicRoute = typeof publicRoutes[number]

@@ -1,14 +1,59 @@
 <template>
   <div class="min-h-screen bg-background">
+    <!-- POS Session Dialog -->
+    <PosSessionDialog
+      :isOpen="showSessionDialog"
+      :mode="sessionDialogMode"
+      :session="currentSession"
+      @close="handleSessionDialogClose"
+      @opened="handleSessionOpened"
+      @closed="handleSessionClosed"
+    />
+
     <div class="container mx-auto px-4 py-8">
       <div class="mb-8 flex justify-between items-start">
         <div>
           <h1 class="text-3xl font-bold text-foreground">{{ t.pos.title }}</h1>
           <p class="text-muted-foreground">{{ t.pos.subtitle }}</p>
+          <div v-if="currentSession" class="mt-2 flex items-center gap-2">
+            <span class="text-sm text-muted-foreground">
+              Session เปิดเมื่อ: {{ formatDateTime(currentSession.openedAt) }}
+            </span>
+            <span class="px-2 py-1 text-xs bg-green-500/20 text-green-600 rounded-full">
+              เปิดอยู่
+            </span>
+          </div>
+        </div>
+        <div v-if="currentSession" class="flex gap-2">
+          <Button variant="outline" @click="handleCloseSession">
+            <XIcon class="h-4 w-4 mr-2" />
+            ปิด Session
+          </Button>
+        </div>
+        <div v-else>
+          <Button @click="handleOpenSession">
+            <PlayIcon class="h-4 w-4 mr-2" />
+            เปิด Session
+          </Button>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Show message if no session -->
+      <div v-if="!currentSession && !sessionLoading" class="mb-8">
+        <Card class="p-6 bg-yellow-500/10 border-yellow-500/20">
+          <CardContent class="text-center py-8">
+            <AlertCircleIcon class="h-12 w-12 mx-auto mb-4 text-yellow-600" />
+            <h3 class="text-lg font-semibold text-foreground mb-2">ยังไม่ได้เปิด POS Session</h3>
+            <p class="text-muted-foreground mb-4">กรุณาเปิด POS Session ก่อนเริ่มขายสินค้า</p>
+            <Button @click="handleOpenSession">
+              <PlayIcon class="h-4 w-4 mr-2" />
+              เปิด POS Session
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div v-if="currentSession || sessionLoading" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Product Search and Cart -->
         <div class="lg:col-span-2 space-y-6">
           <!-- Product Search -->
@@ -263,10 +308,10 @@
                 class="w-full"
                 size="lg"
                 @click="processSale"
-                :disabled="cart.length === 0 || loading"
+                :disabled="cart.length === 0 || !currentSession"
               >
-                <Loader2Icon v-if="loading" class="h-4 w-4 mr-2 animate-spin" />
-                {{ loading ? t.pos.processing : `${t.pos.completeSale} - ฿${grandTotal.toFixed(2)}` }}
+                <Loader2Icon v-if="saleLoading" class="h-4 w-4 mr-2 animate-spin" />
+                {{ saleLoading ? t.pos.processing : `${t.pos.completeSale} - ฿${grandTotal.toFixed(2)}` }}
               </Button>
             </CardContent>
           </Card>
@@ -282,11 +327,24 @@ import {
   SearchIcon, 
   ShoppingCartIcon, 
   TrashIcon, 
-  Loader2Icon 
+  Loader2Icon,
+  XIcon,
+  PlayIcon,
+  AlertCircleIcon
 } from 'lucide-vue-next'
 
 const { t } = useLanguage()
 const { get } = useApi()
+const { 
+  currentSession, 
+  loading: sessionLoading, 
+  getCurrentSession, 
+  refreshSession 
+} = usePosSession()
+
+const showSessionDialog = ref(false)
+const sessionDialogMode = ref<'open' | 'close'>('open')
+const loading = computed(() => sessionLoading.value)
 
 import Card from '../components/ui/card.vue'
 import CardHeader from '../components/ui/card-header.vue'
@@ -294,8 +352,10 @@ import CardContent from '../components/ui/card-content.vue'
 import CardTitle from '../components/ui/card-title.vue'
 import Input from '../components/ui/input.vue'
 import Button from '../components/ui/button.vue'
+import PosSessionDialog from '../components/PosSessionDialog.vue'
 import { useLanguage } from '../composables/useLanguage'
 import { useApi } from '../composables/useApi'
+import { usePosSession } from '../composables/usePosSession'
 
 const router = useRouter()
 
@@ -325,8 +385,8 @@ const selectedCustomer = ref('')
 const paymentMethod = ref('CASH')
 const discount = ref(0)
 const tax = ref(0)
-const loading = ref(false)
 const searchLoading = ref(false)
+const saleLoading = ref(false)
 
 // New search-related state
 const searchInput = ref<HTMLInputElement>()
@@ -555,8 +615,13 @@ const fetchCustomers = async () => {
 
 const processSale = async () => {
   if (cart.value.length === 0) return
+  
+  if (!currentSession.value) {
+    alert('กรุณาเปิด POS Session ก่อนทำการขาย')
+    return
+  }
 
-  loading.value = true
+  saleLoading.value = true
 
   try {
     // Calculate discount and tax as percentages
@@ -591,7 +656,7 @@ const processSale = async () => {
     console.error('Error processing sale:', error)
     alert(t.value.pos.saleError)
   } finally {
-    loading.value = false
+    saleLoading.value = false
   }
 }
 
@@ -615,7 +680,49 @@ const handleKeydown = (event: KeyboardEvent) => {
   }
 }
 
+const formatDateTime = (dateString?: string) => {
+  if (!dateString) return '-'
+  const date = new Date(dateString)
+  return date.toLocaleString('th-TH', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+const handleOpenSession = () => {
+  sessionDialogMode.value = 'open'
+  showSessionDialog.value = true
+}
+
+const handleCloseSession = () => {
+  sessionDialogMode.value = 'close'
+  showSessionDialog.value = true
+}
+
+const handleSessionDialogClose = () => {
+  showSessionDialog.value = false
+}
+
+const handleSessionOpened = (session: any) => {
+  currentSession.value = session
+  showSessionDialog.value = false
+}
+
+const handleSessionClosed = async (session: any) => {
+  currentSession.value = session
+  showSessionDialog.value = false
+  // Refresh to get updated session
+  await refreshSession()
+  alert('ปิด POS Session สำเร็จ!')
+}
+
 onMounted(async () => {
+  // Check for current session
+  await getCurrentSession()
+  
   fetchCustomers()
   loadRecentSearches()
   loadPopularProducts()
@@ -623,9 +730,20 @@ onMounted(async () => {
   // Add keyboard event listeners
   document.addEventListener('keydown', handleKeydown)
   
-  // Focus on search input when page loads
-  await nextTick()
-  searchInput.value?.focus()
+  // Focus on search input when page loads and session is open
+  if (currentSession.value) {
+    await nextTick()
+    searchInput.value?.focus()
+  }
+})
+
+// Watch for session changes
+watch(() => currentSession.value, (newSession) => {
+  if (newSession && newSession.status === 'OPEN') {
+    nextTick(() => {
+      searchInput.value?.focus()
+    })
+  }
 })
 
 onUnmounted(() => {

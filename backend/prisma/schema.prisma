@@ -20,8 +20,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  sales     Sale[]
-  purchases Purchase[]
+  sales          Sale[]
+  purchases      Purchase[]
+  openedSessions PosSession[] @relation("OpenedBy")
+  closedSessions PosSession[] @relation("ClosedBy")
 
   @@map("users")
 }
@@ -100,6 +102,7 @@ model Sale {
   id            String   @id @default(cuid())
   customerId    String?
   userId        String
+  posSessionId  String?
   total         Float
   discount      Float    @default(0)
   tax           Float    @default(0)
@@ -110,9 +113,10 @@ model Sale {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  customer Customer?  @relation(fields: [customerId], references: [id])
-  user     User       @relation(fields: [userId], references: [id])
-  items    SaleItem[]
+  customer   Customer?   @relation(fields: [customerId], references: [id])
+  user       User        @relation(fields: [userId], references: [id])
+  posSession PosSession? @relation(fields: [posSessionId], references: [id])
+  items      SaleItem[]
 
   @@map("sales")
 }
@@ -195,4 +199,36 @@ model PrescriptionItem {
   product      Product      @relation(fields: [productId], references: [id])
 
   @@map("prescription_items")
+}
+
+model PosSession {
+  id                     String    @id @default(cuid())
+  sessionDate            DateTime  @db.Date
+  openedAt               DateTime  @default(now())
+  closedAt               DateTime?
+  openedBy               String
+  closedBy               String?
+  openingCash            Float     @default(0)
+  closingCash            Float?
+  expectedCash           Float?
+  totalSales             Float     @default(0)
+  totalTransactions      Int       @default(0)
+  totalCashSales         Float     @default(0)
+  totalCardSales         Float     @default(0)
+  totalBankTransferSales Float     @default(0)
+  totalDiscount          Float     @default(0)
+  totalTax               Float     @default(0)
+  status                 String    @default("OPEN") // OPEN, CLOSED
+  notes                  String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  openedByUser User   @relation("OpenedBy", fields: [openedBy], references: [id])
+  closedByUser User?  @relation("ClosedBy", fields: [closedBy], references: [id])
+  sales        Sale[]
+
+  @@index([sessionDate])
+  @@index([status])
+  @@index([sessionDate, status])
+  @@map("pos_sessions")
 }

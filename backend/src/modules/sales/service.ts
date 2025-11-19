@@ -65,18 +65,32 @@ export class SaleController {
     const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
     const totalDiscount = (subtotal * discount) / 100
     const totalTax = ((subtotal - totalDiscount) * tax) / 100
-    const total = subtotal - totalDiscount + totalTax
+    const grandTotal = subtotal - totalDiscount + totalTax
+
+    // Find current open POS session
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const currentSession = await prisma.posSession.findFirst({
+      where: {
+        sessionDate: {
+          gte: today,
+          lt: new Date(today.getTime() + 24 * 60 * 60 * 1000)
+        },
+        status: 'OPEN'
+      }
+    })
 
     // Create sale
     const sale = await prisma.sale.create({
       data: {
         customerId,
         userId,
+        posSessionId: currentSession?.id,
         paymentMethod,
         discount,
         tax,
-        subtotal,
-        total,
+        total: subtotal,
+        grandTotal,
         items: {
           create: items.map(item => ({
             productId: item.productId,

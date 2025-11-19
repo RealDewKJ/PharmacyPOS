@@ -14,7 +14,8 @@ import {
   userRoutes,
   dashboardRoutes,
   backupRoutes,
-  securityRoutes
+  securityRoutes,
+  posSessionRoutes
 } from './modules'
 
 export const prisma = new PrismaClient()
@@ -53,6 +54,7 @@ const app = new Elysia()
   .use(dashboardRoutes)
   .use(backupRoutes)
   .use(securityRoutes)
+  .use(posSessionRoutes)
   .onError(({ code, error, set }: { code: string; error: any; set: any }) => {
     
     if (code === 'NOT_FOUND') {

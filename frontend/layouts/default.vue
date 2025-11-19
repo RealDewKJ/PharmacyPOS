@@ -124,7 +124,6 @@ const authStore = useAuthStore()
 const showUserMenu = ref(false)
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: HomeIcon },
   { name: 'Point of Sale', href: '/pos', icon: ShoppingCartIcon },
   { name: 'Products', href: '/products', icon: PackageIcon },
   { name: 'Customers', href: '/customers', icon: UsersIcon },
@@ -132,6 +131,7 @@ const navigation = [
   { name: 'Sales', href: '/sales', icon: BarChart3Icon },
   { name: 'Prescriptions', href: '/prescriptions', icon: FileTextIcon },
   { name: 'Settings', href: '/settings', icon: SettingsIcon },
+  { name: 'Dashboard', href: '/', icon: HomeIcon },
 ]
 
 const handleLogout = async () => {
