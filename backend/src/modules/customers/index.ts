@@ -1,99 +1,83 @@
-import { Elysia, t } from 'elysia'
-import { CustomerController } from './service'
-import {
-  createCustomerSchema,
-  updateCustomerSchema,
-  customerParamsSchema,
-  customerResponseSchema,
-  customersListResponseSchema,
-  deleteCustomerResponseSchema
-} from './model'
-import { authMiddleware } from '../../middleware/auth'
+// Controller handle HTTP related eg. routing, request validation
+import { Elysia } from 'elysia'
+import { Customer } from './service'
+import { CustomerModel } from './model'
+import { strictAuthMiddleware } from '../../middleware/auth'
 
-export const customerRoutes = new Elysia({ prefix: '/customers' })
-  .use(authMiddleware)
-  .get('/', async () => {
-    try {
-      return await CustomerController.getAllCustomers()
-    } catch (error) {
-      return {
-        error: error instanceof Error ? error.message : 'Failed to get customers'
+export const customers = new Elysia({ prefix: '/customers' })
+  .use(strictAuthMiddleware)
+  .get(
+    '/',
+    async () => {
+      return await Customer.getAllCustomers()
+    },
+    {
+      response: CustomerModel.customersListResponse,
+      detail: {
+        tags: ['Customers'],
+        summary: 'Get All Customers',
+        description: 'Retrieve all active customers'
       }
     }
-  }, {
-    response: customersListResponseSchema,
-    detail: {
-      tags: ['Customers'],
-      summary: 'Get All Customers',
-      description: 'Retrieve all active customers'
-    }
-  })
-  .post('/', async ({ body }) => {
-    try {
-      return await CustomerController.createCustomer(body)
-    } catch (error) {
-      return {
-        error: error instanceof Error ? error.message : 'Failed to create customer'
+  )
+  .post(
+    '/',
+    async ({ body }) => {
+      return await Customer.createCustomer(body)
+    },
+    {
+      body: CustomerModel.createCustomerBody,
+      response: CustomerModel.createCustomerResponse,
+      detail: {
+        tags: ['Customers'],
+        summary: 'Create Customer',
+        description: 'Create a new customer'
       }
     }
-  }, {
-    body: createCustomerSchema,
-    response: customerResponseSchema,
-    detail: {
-      tags: ['Customers'],
-      summary: 'Create Customer',
-      description: 'Create a new customer'
-    }
-  })
-  .get('/:id', async ({ params }) => {
-    try {
-      return await CustomerController.getCustomerById(params.id)
-    } catch (error) {
-      return {
-        error: error instanceof Error ? error.message : 'Failed to get customer'
+  )
+  .get(
+    '/:id',
+    async ({ params }) => {
+      return await Customer.getCustomerById(params.id)
+    },
+    {
+      params: CustomerModel.customerParams,
+      response: CustomerModel.getCustomerResponse,
+      detail: {
+        tags: ['Customers'],
+        summary: 'Get Customer by ID',
+        description: 'Retrieve a specific customer by ID'
       }
     }
-  }, {
-    params: customerParamsSchema,
-    response: customerResponseSchema,
-    detail: {
-      tags: ['Customers'],
-      summary: 'Get Customer by ID',
-      description: 'Retrieve a specific customer by ID'
-    }
-  })
-  .put('/:id', async ({ params, body }) => {
-    try {
-      return await CustomerController.updateCustomer(params.id, body)
-    } catch (error) {
-      return {
-        error: error instanceof Error ? error.message : 'Failed to update customer'
+  )
+  .put(
+    '/:id',
+    async ({ params, body }) => {
+      return await Customer.updateCustomer(params.id, body)
+    },
+    {
+      params: CustomerModel.customerParams,
+      body: CustomerModel.updateCustomerBody,
+      response: CustomerModel.updateCustomerResponse,
+      detail: {
+        tags: ['Customers'],
+        summary: 'Update Customer',
+        description: 'Update a customer by ID'
       }
     }
-  }, {
-    params: customerParamsSchema,
-    body: updateCustomerSchema,
-    response: customerResponseSchema,
-    detail: {
-      tags: ['Customers'],
-      summary: 'Update Customer',
-      description: 'Update a customer by ID'
-    }
-  })
-  .delete('/:id', async ({ params }) => {
-    try {
-      return await CustomerController.deleteCustomer(params.id)
-    } catch (error) {
-      return {
-        error: error instanceof Error ? error.message : 'Failed to delete customer'
+  )
+  .delete(
+    '/:id',
+    async ({ params }) => {
+      return await Customer.deleteCustomer(params.id)
+    },
+    {
+      params: CustomerModel.customerParams,
+      response: CustomerModel.deleteCustomerResponse,
+      detail: {
+        tags: ['Customers'],
+        summary: 'Delete Customer',
+        description: 'Soft delete a customer by ID'
       }
     }
-  }, {
-    params: customerParamsSchema,
-    response: deleteCustomerResponseSchema,
-    detail: {
-      tags: ['Customers'],
-      summary: 'Delete Customer',
-      description: 'Soft delete a customer by ID'
-    }
-  })
+  )

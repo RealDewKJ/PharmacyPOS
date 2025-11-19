@@ -1,4 +1,5 @@
 import { t } from 'elysia'
+import { CommonResponses } from '../../types/common-responses'
 
 export namespace AuthModel {
 	export const userRole = t.Union([
@@ -37,42 +38,63 @@ export namespace AuthModel {
 	})
 	export type LogoutBody = typeof logoutBody.static
 
-	export const loginSuccess = t.Object({
+	// Data schemas for success responses
+	export const loginData = t.Object({
 		token: t.String(),
 		refreshToken: t.String(),
 		user: user,
 		sessionId: t.String()
 	})
-	export type LoginSuccess = typeof loginSuccess.static
+	export type LoginData = typeof loginData.static
 
-	export const userProfileSuccess = t.Object({
+	export const userProfileData = t.Object({
 		user: user
 	})
-	export type UserProfileSuccess = typeof userProfileSuccess.static
+	export type UserProfileData = typeof userProfileData.static
 
-	export const sessionResponseSuccess = t.Object({
-		success: t.Boolean(),
+	export const sessionData = t.Object({
 		message: t.String(),
 		deletedSessions: t.Optional(t.Number()),
 		activeSessions: t.Optional(t.Array(t.String())),
 		count: t.Optional(t.Number())
 	})
-	export type SessionResponseSuccess = typeof sessionResponseSuccess.static
+	export type SessionData = typeof sessionData.static
 
-	export const errorResponse = t.Object({
-		error: t.String()
-	})
-	export type ErrorResponse = typeof errorResponse.static
-
-	export const loginResponse = t.Union([loginSuccess, errorResponse])
+	// Response schemas using common response structure
+	export const loginResponse = t.Union([
+		t.Object({
+			success: t.Literal(true),
+			data: loginData,
+			message: t.Optional(t.String()),
+			timestamp: t.String()
+		}),
+		CommonResponses.errorResponse
+	])
 	export type LoginResponse = typeof loginResponse.static
 
-	export const userProfileResponse = t.Union([userProfileSuccess, errorResponse])
+	export const userProfileResponse = t.Union([
+		t.Object({
+			success: t.Literal(true),
+			data: userProfileData,
+			message: t.Optional(t.String()),
+			timestamp: t.String()
+		}),
+		CommonResponses.errorResponse
+	])
 	export type UserProfileResponse = typeof userProfileResponse.static
 
-	export const sessionResponse = t.Union([sessionResponseSuccess, errorResponse])
+	export const sessionResponse = t.Union([
+		t.Object({
+			success: t.Literal(true),
+			data: sessionData,
+			message: t.Optional(t.String()),
+			timestamp: t.String()
+		}),
+		CommonResponses.errorResponse
+	])
 	export type SessionResponse = typeof sessionResponse.static
 
+	// Error literals (using common ones where possible)
 	export const invalidCredentials = t.Literal('Invalid email or password')
 	export type InvalidCredentials = typeof invalidCredentials.static
 
@@ -82,6 +104,12 @@ export namespace AuthModel {
 	export const sessionExpired = t.Literal('Session expired')
 	export type SessionExpired = typeof sessionExpired.static
 
-	export const unauthorized = t.Literal('Unauthorized access')
-	export type Unauthorized = typeof unauthorized.static
+	export const accountLocked = t.Literal('Account is temporarily locked')
+	export type AccountLocked = typeof accountLocked.static
+
+	export const accountInactive = t.Literal('Account is inactive')
+	export type AccountInactive = typeof accountInactive.static
+
+	export const userAlreadyExists = t.Literal('User already exists')
+	export type UserAlreadyExists = typeof userAlreadyExists.static
 }

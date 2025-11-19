@@ -1,6 +1,8 @@
 import { Elysia } from 'elysia'
 import { prisma } from '../index'
+import { CommonResponses } from '../types/common-responses'
 
+// Basic auth middleware - ไม่บังคับ authentication
 export const authMiddleware = new Elysia()
   .derive(async (context) => {
     try {
@@ -31,7 +33,7 @@ export const authMiddleware = new Elysia()
       }
 
       const user = await prisma.user.findUnique({
-        where: { id: payload.userId as string },
+        where: { id: payload.sub as string },
         select: {
           id: true,
           email: true,
@@ -54,27 +56,80 @@ export const authMiddleware = new Elysia()
     }
   })
 
+// Strict auth middleware - บังคับ authentication
+export const requireAuth = new Elysia()
+  .use(authMiddleware)
+  .derive(({ user }) => {
+    if (!user) {
+      throw new Error('Authentication required')
+    }
+    return { user }
+  })
+
+// Role-based auth middleware - บังคับ authentication + role check
+export const requireRole = (roles: string[]) => new Elysia()
+  .use(requireAuth)
+  .derive(({ user }) => {
+    if (!roles.includes(user.role)) {
+      throw new Error('Insufficient permissions')
+    }
+    return { user }
+  })
+
+// Legacy strictAuthMiddleware - เก็บไว้เพื่อ backward compatibility
 export const strictAuthMiddleware = new Elysia()
-  .derive(async (context) => {
+  .onBeforeHandle(async (context) => {
     try {
       const authHeader = context.headers.authorization
+      
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        throw new Error('Authorization header missing or invalid format')
+        context.set.status = 401
+        return CommonResponses.createErrorData(
+          'Authorization header missing or invalid format',
+          'UNAUTHORIZED',
+          401,
+          context.path
+        )
       }
 
       const token = authHeader.substring(7)
       if (!token) {
-        throw new Error('JWT token is missing')
+        context.set.status = 401
+        return CommonResponses.createErrorData(
+          'JWT token is missing',
+          'UNAUTHORIZED',
+          401,
+          context.path
+        )
       }
 
       const payload = await (context as any).jwt.verify(token)
       
+      console.log('JWT Payload:', payload)
+      
       if (!payload) {
-        throw new Error('Invalid or expired JWT token')
+        context.set.status = 401
+        return CommonResponses.createErrorData(
+          'Invalid or expired JWT token',
+          'UNAUTHORIZED',
+          401,
+          context.path
+        )
+      }
+
+      // Check if payload has required fields
+      if (!payload.sub) {
+        context.set.status = 401
+        return CommonResponses.createErrorData(
+          'Invalid JWT token: missing user ID',
+          'UNAUTHORIZED',
+          401,
+          context.path
+        )
       }
 
       const user = await prisma.user.findUnique({
-        where: { id: payload.userId as string },
+        where: { id: payload.sub as string },
         select: {
           id: true,
           email: true,
@@ -85,16 +140,36 @@ export const strictAuthMiddleware = new Elysia()
       })
 
       if (!user) {
-        throw new Error('User not found')
+        context.set.status = 401
+        return CommonResponses.createErrorData(
+          'User not found',
+          'USER_NOT_FOUND',
+          401,
+          context.path
+        )
       }
 
       if (!user.isActive) {
-        throw new Error('User account is inactive')
+        context.set.status = 401
+        return CommonResponses.createErrorData(
+          'User account is inactive',
+          'ACCOUNT_INACTIVE',
+          401,
+          context.path
+        )
       }
 
-      return { user }
+      // Store user in context for use in route handlers
+      ;(context as any).user = user
+      return
     } catch (error: any) {
+      console.warn('Auth middleware error:', error.message)
       context.set.status = 401
-      throw new Error(error.message || 'Authentication failed')
+      return CommonResponses.createErrorData(
+        'Authentication failed',
+        'AUTH_ERROR',
+        401,
+        context.path
+      )
     }
   })
